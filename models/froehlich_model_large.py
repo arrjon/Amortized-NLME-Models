@@ -155,7 +155,7 @@ class FroehlichModelLarge(NlmeBaseAmortizer):
                  load_best: bool = False,
                  pool=None):
         param_names = ['$\\delta_1 m_0$', '$\\delta_2$', '$e_0 m_0$', '$k_2 m_0 scale$', '$k_2$',
-                       '$k_1 m_0$', '$r_0 m_0$', '$\\gamma$', '$t_0$', '$offset$', '$\\sigma$']
+                       '$k_1 m_0$', '$r_0 m_0$', '$\\gamma$', '$t_0$', 'offset', '$\\sigma$']
 
         self.pool = pool  # if simulation should be done in parallel
         if pool is not None:

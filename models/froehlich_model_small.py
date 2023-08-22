@@ -112,7 +112,7 @@ def batch_simulator(param_samples: np.ndarray, n_obs: int, with_noise: bool = Tr
 class FroehlichModelSmall(NlmeBaseAmortizer):
     def __init__(self, name: str = 'FroehlichModelSmall', network_idx: int = -1, load_best: bool = False):
         # define names of parameters
-        param_names = ['$\delta$', '$\gamma$', '$k$-$m_0$-scale', '$t_0$', 'offset', '$\sigma$']
+        param_names = ['$\delta$', '$\gamma$', '$k m_0$-scale', '$t_0$', 'offset', '$\sigma$']
 
         # define prior values (for log-parameters)
         prior_mean = np.array([-3, -3, 5, 0, 1, -1])
