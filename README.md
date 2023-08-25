@@ -1,4 +1,4 @@
-# Amortized-NLME
+# Amortized-NLME-Models
 
 Non-linear mixed-effects models are a powerful tool for studying heterogeneous populations in biology, medicine, economics, engineering, and related fields.
 However, fitting these models is computationally challenging when the description of individuals is complex and the population is large.
@@ -8,7 +8,7 @@ This approximation is then used to efficiently infer population-level parameters
 More details on the method can be found in the preprint: https://doi.org/10.1101/2023.08.22.554273
 
 
-Below you find a step-by-step guide to use the AmortizedNLME package.
+Below you find a step-by-step guide to use the Amortized-NLME-Models package.
 The package is still under development and will be extended in the future.
 If you have any questions or suggestions, please contact us.
 
