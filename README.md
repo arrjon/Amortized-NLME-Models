@@ -5,7 +5,8 @@ However, fitting these models is computationally challenging when the descriptio
 To address this issue, we propose the use of neural density estimation to approximate individual-specific posterior distributions in an amortized fashion. 
 This approximation is then used to efficiently infer population-level parameters.
 
-More details on the method can be found here: **_paper missing_**.
+More details on the method can be found in the preprint: https://doi.org/10.1101/2023.08.22.554273
+
 
 Below you find a step-by-step guide to use the AmortizedNLME package.
 The package is still under development and will be extended in the future.
