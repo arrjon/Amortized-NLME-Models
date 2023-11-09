@@ -149,7 +149,7 @@ def batch_simulator(param_batch: np.ndarray, n_obs: int, with_noise: bool = True
     if n_sim == 1:
         # return only one simulation
         return sim_data[0]
-    return sim_data[:, np.newaxis]  # add dimension for the channel (n_sim, n_obs, 1)
+    return sim_data[:, :, np.newaxis]  # add dimension for the channel (n_sim, n_obs, 1)
 
 
 class FroehlichModelSDE(NlmeBaseAmortizer):
@@ -232,12 +232,14 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         t_points = np.linspace(start=1 / 6, stop=30, num=180, endpoint=True)
 
         # Plot
-        plt.plot(t_points, sample_y, 'b', label='model simulation')
-        plt.plot(t_points, sample_y_noisy, 'g', label='simulation with noise')
+        for i, (sim, sim_noisy) in enumerate(zip(sample_y, sample_y_noisy)):
+            plt.plot(t_points, sim.flatten(), 'b', alpha=0.5,
+                     label='model simulation' if i == 0 else None)
+            plt.plot(t_points, sim_noisy.flatten(), 'r', alpha=0.5,
+                     label='noisy simulation' if i == 0 else None)
         plt.xlabel('$t\, [h]$')
         plt.ylabel('fluorescence intensity [a.u.]')
         plt.title('Simulations')
         plt.legend()
-
         plt.show()
         return

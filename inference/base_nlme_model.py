@@ -22,6 +22,18 @@ def split_data(i: int, x: tf.Tensor):
     selector = tf.where(x[:, :, -1] == i, 1.0, 0.0)
     x0 = x[:, :, 0] * selector
     x1 = x[:, :, 1] * selector
+    split_x = tf.stack((selector, x0, x1), axis=-1)
+    return split_x
+
+
+def split_data_2d(i: int, x: tf.Tensor):
+    """
+    i index of network, x inputs to the SplitNetwork, now with two measurements per observation
+    # Should return the input for the corresponding network
+    """
+    selector = tf.where(x[:, :, -1] == i, 1.0, 0.0)
+    x0 = x[:, :, 0] * selector
+    x1 = x[:, :, 1] * selector
     x2 = x[:, :, 2] * selector
     split_x = tf.stack((selector, x0, x1, x2), axis=-1)
     return split_x
@@ -62,9 +74,10 @@ class NlmeBaseAmortizer(ABC):
         self.coupling_design = ['affine', 'spline'][0]
         self.batch_size = 128
         self.bidirectional_LSTM = False  # default
-        self.split_summary = False  # default, only relevant if inputs can be split
         self.summary_dim = 10  # default
         self.num_conv_layers = 2  # default
+        self.split_summary = False  # default, only relevant if inputs can be split
+        self.n_obs_per_measure = 1  # number of observations per measurement, only important if inputs can be split
 
         # amortizer and prior
         # must be before calling the generative model so prior etc. are up-to-date
@@ -135,7 +148,7 @@ class NlmeBaseAmortizer(ABC):
                   f'units and a dense layer with output dimension {self.summary_dim} as summary network')
 
             summary_net = SplitNetwork(num_splits=2,
-                                       split_data_configurator=split_data,
+                                       split_data_configurator=split_data if self.n_obs_per_measure == 1 else split_data_2d,
                                        network_type=SequenceNetwork,
                                        network_kwargs=network_kwargs)
         else:

@@ -70,7 +70,7 @@ def batch_simulator(param_batch: np.ndarray,
     if n_sim == 1:
         # return only one simulation
         return sim_data[0]
-    return sim_data[:, np.newaxis]  # add dimension for the channel (n_sim, n_obs, 1)
+    return sim_data[:, :, np.newaxis]  # add dimension for the channel (n_sim, n_obs, 1)
 
 
 class FroehlichModelDetailed(NlmeBaseAmortizer):
@@ -121,7 +121,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         model_name = f'amortizer-large-fro' \
                      f'-{self.n_coupling_layers}layers' \
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
-                     f'-{"bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
+                     f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                      f'-{self.n_epochs}epochs'
         return model_name
 
@@ -136,7 +136,9 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         return simulator
 
     @staticmethod
-    def load_data(n_data: int, load_eGFP: bool = True, load_d2eGFP: bool = False) -> (np.ndarray, Optional[np.ndarray]):
+    def load_data(n_data: int,
+                  load_eGFP: bool = True,
+                  load_d2eGFP: bool = False) -> (np.ndarray, Optional[np.ndarray]):
         if not load_eGFP and not load_d2eGFP:
             obs_data = load_single_cell_data('data_random_cells_large_model', n_data)
             true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters_large_model.csv',

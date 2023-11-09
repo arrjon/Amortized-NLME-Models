@@ -40,9 +40,9 @@ function simulateSmallClairon(
         fM2 => parameters[1],
         fM3 => parameters[2],
         theta => parameters[3],
-        deltaAb => parameters[4],
-        deltaV => parameters[5],
-        deltaS => parameters[6],
+        deltaAb => 0.03,
+        deltaV => parameters[4],
+        deltaS => parameters[5],
     ]::Vector{Pair{Num, Float64}}
 
     # Mapping from state variable names to initial values

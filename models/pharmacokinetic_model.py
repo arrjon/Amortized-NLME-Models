@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-from abc import ABC
 
 # # Amortized Inference for the pharmacokinetic NLME Model
 
@@ -200,6 +199,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         print('Using the PharmacokineticModel')
 
     def load_trained_model(self, model_idx: int = 0, load_best: bool = False) -> Optional[str]:
+        self.n_obs_per_measure = 2
 
         # load best
         if load_best:

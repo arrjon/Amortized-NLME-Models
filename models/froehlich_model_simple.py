@@ -6,7 +6,6 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from numba import jit
 
 from typing import Optional, Union
 from functools import partial
@@ -16,7 +15,6 @@ from inference.base_nlme_model import NlmeBaseAmortizer
 from bayesflow.simulation import Simulator
 
 
-#@jit(nopython=True)
 def ode_analytical_sol(t: np.ndarray, delta: float, gamma: float, k_m0_scale: float, t_0: float) -> np.ndarray:
     """
     Solves a first order ordinary differential equation (ODE) with the given parameters.
@@ -122,7 +120,7 @@ def batch_simulator(param_batch: np.ndarray,
     if n_sim == 1:
         # return only one simulation
         return sim_data[0]
-    return sim_data[:, np.newaxis]  # add dimension for the channel (n_sim, n_obs, 1)
+    return sim_data[:, :, np.newaxis]  # add dimension for the channel (n_sim, n_obs, 1)
 
 
 class FroehlichModelSimple(NlmeBaseAmortizer):
