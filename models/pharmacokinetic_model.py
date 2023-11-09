@@ -84,14 +84,15 @@ def batch_simulator(param_batch: np.ndarray,
         # simulate the data
         (theta_1, theta_2, theta_4, theta_5, theta_6, theta_7,
          theta_7, theta_10, theta_12, theta_13, eta_4) = np.exp(log_params)
+        jl_parameter = jlconvert(jl.Vector[jl.Float64], np.array([theta_1, theta_2, theta_4,
+                                                                  theta_5, theta_6, theta_7,
+                                                                  theta_7, theta_10,  eta_4]))
 
         # convert to julia types
         jl_t_doses = jlconvert(jl.Vector[jl.Float64], t_doses)
         jl_t_measurement = jlconvert(jl.Vector[jl.Float64], t_measurement)
         # simulate
-        a_sim = jl.simulatePharma(theta_1, theta_2, theta_4, theta_5, theta_6, theta_7,
-                                  theta_7, theta_10,
-                                  eta_4,
+        a_sim = jl.simulatePharma(jl_parameter,
                                   wt, dos,
                                   jl_t_doses,
                                   jl_t_measurement).to_numpy().T
@@ -158,7 +159,7 @@ def convert_bf_to_observables(output: np.ndarray,
     """
     measurements = output[np.where(output[:, 3] == 0)]
     y = np.exp(measurements[:, :2])
-    t_measurements = y[:, 2] * scaling_time
+    t_measurements = measurements[:, 2] * scaling_time
 
     doses = output[np.where(output[:, 3] == 1)]
     dos = np.power(10, doses[0, 0])
@@ -198,7 +199,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
         print('Using the PharmacokineticModel')
 
-    def load_trained_model(self, model_idx: int = 0, load_best: bool = False) -> Optional[str]:
+    def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> Optional[str]:
         self.n_obs_per_measure = 2
 
         # load best
@@ -273,12 +274,13 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         output = batch_simulator(params)
         (y_sim, y_time_points,
          doses_time_points, dos,
-         wt_sim) = convert_bf_to_observables(output[0, :, :])
+         wt_sim) = convert_bf_to_observables(output)
 
         plt.figure(tight_layout=True, figsize=(10, 5))
         plt.scatter(y_time_points, y_sim[:, 0], color='blue', label=f'simulated $A_{2}$')
         plt.scatter(y_time_points, y_sim[:, 1], color='red', label=f'simulated $A_{3}$')
-        plt.vlines(doses_time_points, 0, np.max(y_sim))
+        plt.vlines(doses_time_points, 0, np.max(y_sim), color='grey', linestyles='--',
+                   alpha=0.5, label='dose')
         plt.title(f'Patient Simulation with DOS={np.round(dos, 2)}, '
                   f'wt={np.round(wt_sim, 2)}')
         plt.legend()
@@ -342,7 +344,7 @@ def read_csv_pharma(csv_file: str) -> pd.DataFrame:
 
 
 # load data from files
-def load_data(file_name: str = 'data/Suni_PK_final.csv', number_data_points: int = None) -> list[np.ndarray]:
+def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv', number_data_points: int = None) -> list[np.ndarray]:
     data_raw = read_csv_pharma(file_name)
     data = convert_csv_to_simulation_data(data_raw)
 

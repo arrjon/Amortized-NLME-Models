@@ -38,23 +38,25 @@ sys = structural_simplify(sys)
 
 
 function simulatePharma(
-        theta_1, theta_2_eta_1, theta_4_eta_3, theta_5, theta_6_eta_2,
-        theta_7, theta_8, theta_10, theta_12, theta_13,
-        eta_4,
-        wt_indv, DOS, dosetimes, t_measurement)
+    parameters::Vector{Float64},
+    wt_indv::Float64,
+    DOS::Float64,
+    dosetimes::Vector{Float64},
+    t_measurement::Vector{Float64}
+    )
 
     p_var = [
-        θ_1 => theta_1,
-        θ_2_η_1 => theta_2_eta_1,
-        θ_4_η_3 => theta_4_eta_3,
-        θ_5 => theta_5,
-        θ_6_η_2 => theta_6_eta_2,
-        θ_7 => theta_7,
-        θ_8 => theta_8,
-        θ_10 => theta_10,
-        η_4 => eta_4,
+        θ_1 => parameters[1],
+        θ_2_η_1 => parameters[2],
+        θ_4_η_3 => parameters[3],
+        θ_5 => parameters[4],
+        θ_6_η_2 => parameters[5],
+        θ_7 => parameters[6],
+        θ_8 => parameters[7],
+        θ_10 => parameters[8],
+        η_4 => parameters[9],
         wt => wt_indv
-    ]
+    ]::Vector{Pair{Num, Float64}}
 
     x0 = [
         A1 => 0.0,
@@ -62,7 +64,7 @@ function simulatePharma(
         A3 => 0.0,
         A4 => 0.0,
         A5 => 0.0
-    ]
+    ]::Vector{Pair{Num, Float64}}
 
     affect!(integrator) = integrator.u[1] += DOS
     cb = PresetTimeCallback(dosetimes, affect!)
