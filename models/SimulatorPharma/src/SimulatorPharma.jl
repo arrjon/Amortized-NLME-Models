@@ -4,22 +4,22 @@ using SciMLBase
 using DifferentialEquations
 using ModelingToolkit
 
-@parameters t, θ_0, θ_1, θ_2, θ_3, θ_4, θ_5, θ_6, θ_7, θ_8, θ_9, η_0, η_1, η_2, η_3, wt
+@parameters t, θ_1, θ_2_η_1, θ_4_η_3, θ_5, θ_6_η_2, θ_7, θ_8, θ_10, η_4, wt
 @variables A1(t), A2(t), A3(t), A4(t), A5(t)
 D = Differential(t)
 
 ASCL = (wt / 70) ^ 0.75
 ASV = wt / 70
-k_a = θ_0
-V_2 = θ_1 * ASV * η_0
+k_a = θ_1
+V_2 = θ_2_η_1 * ASV
 Q_H = 80 * ASCL
-CLP = θ_2 * ASCL * η_2
-CLM = θ_3 * ASCL
-V_3 = θ_4 * ASV * η_1
-Q_34 = θ_5 * ASCL
-V_4 = θ_6 * ASV
-f_m = 0.21 * η_3
-Q_25 = θ_7 * ASCL
+CLP = θ_4_η_3 * ASCL
+CLM = θ_5 * ASCL
+V_3 = θ_6_η_2 * ASV
+Q_34 = θ_7 * ASCL
+V_4 = θ_8 * ASV
+f_m = 0.21 * η_4
+Q_25 = θ_10 * ASCL
 V_5 = 588 * ASV
 CLIV = (k_a * A1 + Q_H / V_2 * A2) / (Q_H + CLP)
 
@@ -33,31 +33,26 @@ eqs = [
 
 @named sys = ODESystem(eqs, t,
     [A1, A2, A3, A4, A5],
-    [θ_0, θ_1, θ_2, θ_3, θ_4, θ_5, θ_6, θ_7, θ_8, θ_9, η_0, η_1, η_2, η_3, wt])
+    [θ_1, θ_2_η_1, θ_4_η_3, θ_5, θ_6_η_2, θ_7, θ_8, θ_10, η_4, wt])
 sys = structural_simplify(sys)
 
 
 function simulatePharma(
-        theta_0, theta_1, theta_2, theta_3, theta_4,
-        theta_5, theta_6, theta_7, theta_8, theta_9,
-        eta_0, eta_1, eta_2, eta_3,
+        theta_1, theta_2_eta_1, theta_4_eta_3, theta_5, theta_6_eta_2,
+        theta_7, theta_8, theta_10, theta_12, theta_13,
+        eta_4,
         wt_indv, DOS, dosetimes, t_measurement)
 
     p_var = [
-        θ_0 => theta_0,
         θ_1 => theta_1,
-        θ_2 => theta_2,
-        θ_3 => theta_3,
-        θ_4 => theta_4,
+        θ_2_η_1 => theta_2_eta_1,
+        θ_4_η_3 => theta_4_eta_3,
         θ_5 => theta_5,
-        θ_6 => theta_6,
+        θ_6_η_2 => theta_6_eta_2,
         θ_7 => theta_7,
         θ_8 => theta_8,
-        θ_9 => theta_9,
-        η_0 => eta_0,
-        η_1 => eta_1,
-        η_2 => eta_2,
-        η_3 => eta_3,
+        θ_10 => theta_10,
+        η_4 => eta_4,
         wt => wt_indv
     ]
 

@@ -6,9 +6,8 @@ from typing import Optional, Union
 from abc import ABC, abstractmethod
 
 import tensorflow as tf
-from tensorflow.keras.layers import LSTM
 from bayesflow.simulation import Prior, Simulator
-from bayesflow.summary_networks import SequentialNetwork, SplitNetwork
+from bayesflow.summary_networks import SequenceNetwork, SplitNetwork
 from bayesflow.networks import InvertibleNetwork
 from bayesflow.amortizers import AmortizedPosterior
 from bayesflow.trainers import Trainer
@@ -51,25 +50,25 @@ class NlmeBaseAmortizer(ABC):
         self.prior_mean: np.ndarray = np.empty(self.n_params) if prior_mean is None else prior_mean
         self.prior_cov: np.ndarray = np.empty(self.n_params) if prior_cov is None else prior_cov
         self.prior_std: np.ndarray = np.empty(self.n_params) if prior_cov is None else np.sqrt(np.diag(prior_cov))
+        self.prior_type = 'normal'
 
         # define maximal number of observations
         self.n_obs = 180 if n_obs is None else n_obs
 
         # training parameters
         self.n_epochs = 500
-        self.n_coupling_layers = 7
+        self.n_coupling_layers = 6
+        self.n_dense_layers_in_coupling = 2
+        self.coupling_design = ['affine', 'spline'][0]
         self.batch_size = 128
-        self.summary_only_lstm = True
-        self.split_summary = False
-        self.summary_dim = 20  # default, only if summary_only_lstm is False
-        self.num_conv_layers = 2  # default, only if summary_only_lstm is False
-        self.summary_loss_fun = None  # 'MMD' or None
-        self.final_loss = np.Inf
-        self.training_time = np.Inf
+        self.bidirectional_LSTM = False  # default
+        self.split_summary = False  # default, only relevant if inputs can be split
+        self.summary_dim = 10  # default
+        self.num_conv_layers = 2  # default
 
         # amortizer and prior
         # must be before calling the generative model so prior etc. are up-to-date
-        self.network_name = self.load_trained_model(model_idx=network_idx, load_best=load_best)
+        self.network_name = self.load_amortizer_configuration(model_idx=network_idx, load_best=load_best)
         self._build_amortizer()
         self._build_prior()
         """
@@ -78,13 +77,11 @@ class NlmeBaseAmortizer(ABC):
         """
 
     @abstractmethod
-    def load_trained_model(self, model_idx: int = -1, load_best: bool = False) -> Optional[str]:
+    def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> Optional[str]:
         # load trained model
         if model_idx == 0:
             self.n_epochs = 500
             self.n_coupling_layers = 5
-            self.final_loss = np.Inf
-            self.training_time = np.Inf
             model_name = 'model_XY'
             raise NotImplementedError('Model not implemented yet.')
         else:
@@ -117,73 +114,51 @@ class NlmeBaseAmortizer(ABC):
         print(self.amortizer.summary())
         return trainer
 
-    def _build_amortizer(self,
-                         n_coupling_layers: Optional[int] = None,
-                         summary_only_lstm: Optional[bool] = None,
-                         split_summary: Optional[bool] = None,
-                         summary_dim: Optional[int] = None,
-                         summary_loss_fun: Optional[str] = None) -> None:
+    def _build_amortizer(self) -> None:
         """
         build amortizer, i.e., neural networks (summary and inference networks)
-        Args:
-            n_coupling_layers: int - number of coupling layers
-            summary_only_lstm: bool - if True, the summary network is a LSTM, otherwise it is a SequentialNetwork
-            summary_dim: int - dimension of the summary network output (SequentialNetwork only)
-            summary_loss_fun: str - additional loss function for latent space (misspecification detection)
 
         Returns: bayesflow.amortizers.AmortizedPosterior -- the amortizer
         """
-        if n_coupling_layers is None:
-            n_coupling_layers = self.n_coupling_layers
-        if summary_only_lstm is None:
-            summary_only_lstm = self.summary_only_lstm
-        if split_summary is None:
-            split_summary = self.split_summary
-        if summary_dim is None:
-            summary_dim = self.summary_dim
-        if summary_loss_fun is None:
-            summary_loss_fun = self.summary_loss_fun
-
+        # summary network
         # 2^k hidden units s.t. 2^k > #datapoints = 8
         power_k_hidden_units = int(np.ceil(np.log2(self.n_obs)))
 
-        if split_summary:
-            if summary_only_lstm:
-                network_kwargs = {'units': 2 ** power_k_hidden_units}
-                network_type = LSTM
-                print(f'using a split network with 2 splits, '
-                      f'in each a LSTM with {2 ** power_k_hidden_units} units as summary network')
-            else:
-                network_kwargs = {'summary_dim': summary_dim,  # 20
-                                  'num_conv_layers': self.num_conv_layers,  # 2
-                                  'lstm_units': 2 ** power_k_hidden_units}
-                network_type = SequentialNetwork
-                print(f'using a split network with 2 splits, '
-                      f'in each {self.num_conv_layers} layers of MultiConv1D,a LSTM with {2 ** power_k_hidden_units} '
-                      f'units and a dense layer with output dimension {summary_dim} as summary network')
+        if self.split_summary:
+            network_kwargs = {'summary_dim': self.summary_dim,
+                              'num_conv_layers': self.num_conv_layers,
+                              'lstm_units': 2 ** power_k_hidden_units,
+                              'bidirectional': self.bidirectional_LSTM}
+            print(f'using a split network with 2 splits, '
+                  f'in each {self.num_conv_layers} layers of MultiConv1D, '
+                  f'a {"bidirectional" if self.bidirectional_LSTM else ""} LSTM with {2 ** power_k_hidden_units} '
+                  f'units and a dense layer with output dimension {self.summary_dim} as summary network')
 
             summary_net = SplitNetwork(num_splits=2,
                                        split_data_configurator=split_data,
-                                       network_type=network_type,
+                                       network_type=SequenceNetwork,
                                        network_kwargs=network_kwargs)
-        elif summary_only_lstm:
-            summary_net = LSTM(units=2 ** power_k_hidden_units)
-            print(f'using LSTM with {2 ** power_k_hidden_units} units as summary network')
         else:
-            summary_net = SequentialNetwork(summary_dim=summary_dim,  # 20
-                                            num_conv_layers=self.num_conv_layers,  # 2
-                                            lstm_units=2 ** power_k_hidden_units)
+            summary_net = SequenceNetwork(summary_dim=self.summary_dim,
+                                          num_conv_layers=self.num_conv_layers,
+                                          lstm_units=2 ** power_k_hidden_units,
+                                          bidirectional=self.bidirectional_LSTM)
             print(
-                f'using {self.num_conv_layers} layers of MultiConv1D,a LSTM with {2 ** power_k_hidden_units} '
-                f'units and a dense layer with output dimension {summary_dim} as summary network')
+                f'using {self.num_conv_layers} layers of MultiConv1D, '
+                f'a {"bidirectional" if self.bidirectional_LSTM else ""} LSTM with {2 ** power_k_hidden_units} '
+                f'units and a dense layer with output dimension {self.summary_dim} as summary network')
+
+        # inference network
+        coupling_settings = {
+            "num_dense": self.n_dense_layers_in_coupling,
+            "coupling_design": self.coupling_design,
+        }
 
         inference_net = InvertibleNetwork(num_params=self.n_params,
-                                          num_coupling_layers=n_coupling_layers)
-        print(f'using a {n_coupling_layers}-layer cINN as inference network')
-        if summary_loss_fun is not None:
-            print('Using MMD as additional loss function for latent space.')
-
-        self.amortizer = AmortizedPosterior(inference_net, summary_net, summary_loss_fun=summary_loss_fun)
+                                          num_coupling_layers=self.n_coupling_layers,
+                                          coupling_settings=coupling_settings)
+        print(f'using a {self.n_coupling_layers}-layer cINN as inference network')
+        self.amortizer = AmortizedPosterior(inference_net, summary_net)
         return
 
     def _build_prior(self) -> None:
@@ -231,12 +206,11 @@ class NlmeBaseAmortizer(ABC):
             posterior_draws = self.amortizer.sample({'summary_conditions': data}, n_samples=n_samples)
         else:
             # data is a list (different lengths, e.g. number of observations)
-            n_data = len(data)
-            posterior_draws = np.zeros((n_data, n_samples, self.n_params))
-            for d_idx, d in enumerate(data):
-                # sample separately for each data point since points may have different number of observations
-                posterior_draws[d_idx] = self.amortizer.sample({'summary_conditions': d[np.newaxis, :]},
-                                                               n_samples=n_samples)
+            input_list = []
+            for d in data:
+                # make bayesflow dict
+                input_list.append({'summary_conditions': d})
+            posterior_draws = self.amortizer.sample_loop(input_list, n_samples=n_samples)
         return self._reconfigure_samples(posterior_draws)
 
     def generate_simulations_from_prior(self,
@@ -256,17 +230,10 @@ class NlmeBaseAmortizer(ABC):
         new_sims['parameters'] = self._reconfigure_samples(new_sims['parameters'])
         return new_sims
 
-    @abstractmethod
-    def print_and_plot_example(self) -> None:
-        """
-            Print and plot example.
-        """
-
 
 def batch_gaussian_prior(mean: np.ndarray,
                          cov: np.ndarray,
                          batch_size: int) -> np.ndarray:
-    # it is used as a log-normal prior
     """
     Samples from the prior 'batch_size' times.
     ----------
@@ -280,11 +247,19 @@ def batch_gaussian_prior(mean: np.ndarray,
     Output:
     p_samples : np.ndarray of shape (batch size, parameter dimension) -- the samples batch of parameters
     """
-    # Prior ranges for the simulator
-    p_samples = np.random.multivariate_normal(mean=mean,
-                                              cov=cov,
-                                              size=batch_size)
-    return p_samples
+    prior_batch = np.random.multivariate_normal(mean=mean,
+                                                cov=cov,
+                                                size=batch_size)
+    return prior_batch
+
+
+def batch_uniform_prior(prior_bounds: np.ndarray,
+                        batch_size: int) -> np.ndarray:
+    """Sample from a uniform prior distribution."""
+    prior_batch = np.random.uniform(low=prior_bounds[:, 0],
+                                    high=prior_bounds[:, 1],
+                                    size=(batch_size, prior_bounds.shape[0]))
+    return prior_batch
 
 
 def configure_input(forward_dict: dict,

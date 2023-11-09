@@ -4,15 +4,20 @@ from datetime import datetime
 
 from scipy.stats import lognorm, entropy
 from scipy.stats import t as t_dist
-from pypesto import visualize
+from pypesto import visualize, Result
+import matplotlib.cm as cm
 
 
-def visualize_pesto_result(result):
+def visualize_pesto_result(result: Result):
     # visualize results of optimization
-    visualize.waterfall(result)
-    visualize.parameters(result)
+    # results' id is "batch_id_run_id", so int(s.split('_')[1]) gives us the run_id
+    c_id = np.array([int(s.split('_')[1]) for s in result.optimize_result.as_dataframe()['id']])
+    cm_mapper = cm.ScalarMappable(norm=cm.colors.Normalize(vmin=0, vmax=np.max(c_id) + 1), cmap=cm.hsv)
+    color_map = cm_mapper.to_rgba(c_id)
+    visualize.waterfall(result, colors=color_map)
+    visualize.parameters(result, colors=color_map)
     if result.optimize_result.history[0].options.trace_record:
-        visualize.optimizer_history(result)
+        visualize.optimizer_history(result, colors=color_map)
     return
 
 
@@ -159,10 +164,6 @@ def plot_parameter_estimates(result_list: list[np.ndarray],
         ax.fill_betweenx(parameters_ind[:n_pop_params], prior_interval[:, 0], prior_interval[:, 1],
                          color='grey', alpha=0.2, label='95% prior region')
 
-    if true_parameters is not None:
-        ax.plot(true_parameters, parameters_ind, color='red', marker='x',
-                label='true parameters sample')
-
     for j_x, x in reversed(list(enumerate(result_list))):
         if run_names is None:
             if j_x == 0:
@@ -179,6 +180,10 @@ def plot_parameter_estimates(result_list: list[np.ndarray],
             marker='o',
             label=tmp_legend,
         )
+
+    if true_parameters is not None:
+        ax.plot(true_parameters, parameters_ind, color='red', marker='x',
+                label='true parameters sample')
 
     ax.set_yticks(parameters_ind, param_names_plot)
     ax.set_xlabel('Parameter value')

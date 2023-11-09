@@ -1,0 +1,7 @@
+parameter,distribution,"mean","variance"
+fM2,log-normal,"4","3"
+fM3,log-normal,"12","3"
+theta,log-normal,"18","3"
+deltaAb,log-normal,"0.03","3"
+deltaV,log-normal,"3","3"
+deltaS,log-normal,"0.01","3"

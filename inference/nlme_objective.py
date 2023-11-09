@@ -20,15 +20,15 @@ def second_term_gaussian(log_phi: np.ndarray,  # parameter from amortizer
                          log_phi_cov: np.ndarray,  # parameter including covariates
                          beta: np.ndarray,
                          psi_inverse: np.ndarray,
-                         prior_mean: np.ndarray,
-                         prior_cov_inverse: np.ndarray,
-                         huber_loss_delta: float) -> float:
+                         prior_mean: Optional[np.ndarray] = None,
+                         prior_cov_inverse: Optional[np.ndarray] = None,
+                         huber_loss_delta: Optional[float] = None) -> float:
     """compute second term of objective function for gaussian likelihood"""
-    dif = log_phi_cov - beta  # parameters for covariates are normal, other are log-normal
+    dif = log_phi_cov - beta  # parameters with covariates are normal, prior is only on parameters
 
-    # likelihood
+    # population density
     if huber_loss_delta is None:
-        # compute normal gaussian likelihood
+        # compute normal gaussian density
         temp_psi = 0.5 * np.dot(np.dot(dif, psi_inverse), dif.T)
     else:
         cholesky_psi = np.linalg.cholesky(psi_inverse)
@@ -36,8 +36,13 @@ def second_term_gaussian(log_phi: np.ndarray,  # parameter from amortizer
         temp_psi = apply_huber_loss(dif_psi_norm, delta=huber_loss_delta)
 
     # prior
-    dif_2 = log_phi - prior_mean
-    temp_sigma = 0.5 * np.dot(np.dot(dif_2, prior_cov_inverse), dif_2.T)
+    if prior_cov_inverse is None:
+        # uniform prior
+        temp_sigma = 0.
+    else:
+        # gaussian prior
+        dif_2 = log_phi - prior_mean
+        temp_sigma = 0.5 * np.dot(np.dot(dif_2, prior_cov_inverse), dif_2.T)
 
     # sum up
     second_term = temp_sigma - temp_psi
@@ -51,10 +56,9 @@ def compute_log_sum(n_sim: int,
                     param_samples_cov: np.ndarray,
                     beta: np.ndarray,
                     psi_inverse: np.ndarray,
-                    prior_mean: np.ndarray,
-                    prior_cov_inverse: np.ndarray,
-                    huber_loss_delta: Optional[float] = None,
-                    ) -> np.ndarray:
+                    prior_mean: Optional[np.ndarray] = None,
+                    prior_cov_inverse: Optional[np.ndarray] = None,
+                    huber_loss_delta: Optional[float] = None) -> np.ndarray:
     """compute log-sum-exp of second term in objective function with numba"""
     expectation_approx = np.zeros((n_sim, n_samples))
     for sim_idx, (p_sample, p_cov_sample) in enumerate(zip(param_samples, param_samples_cov)):
@@ -72,34 +76,49 @@ def compute_log_sum(n_sim: int,
 
 # define objective class
 class ObjectiveFunctionNLME:
+    """
+    objective function for non-linear mixed effects models with normal population distribution
+    prior can be either gaussian or uniform
+    """
+
     def __init__(self,
                  model_name: str,
-                 prior_mean: np.ndarray,
-                 prior_std: np.ndarray,
+                 prior_mean: np.ndarray,  # needed for gaussian prior
+                 prior_std: Optional[np.ndarray] = None,  # needed for gaussian prior
                  param_samples: Optional[np.ndarray] = None,  # (n_sim, n_samples, n_posterior_params)
                  covariance_format: str = 'diag',
                  covariates: Optional[np.ndarray] = None,
                  covariate_mapping: Optional[callable] = None,
-                 param_dim: Optional[int] = None,
                  penalize_correlations: Optional[float] = None,
-                 huber_loss_delta: Optional[float] = None):
+                 huber_loss_delta: Optional[float] = None,
+                 prior_type: str = 'gaussian',
+                 prior_bounds: Optional[np.ndarray] = None):
 
         self.model_name = model_name
         self.param_samples = param_samples if param_samples is not None else np.empty((1, 1, 1))
-        self.prior_mean = prior_mean
-        self.prior_cov_inverse = np.diag(1. / prior_std ** 2)
         self.covariance_format = covariance_format
         if covariance_format != 'diag' and covariance_format != 'cholesky':
             raise ValueError(f'covariance_format must be either "diag" or "cholesky", but is {covariance_format}')
         self.penalize_correlations = penalize_correlations
         self.huber_loss_delta = huber_loss_delta
 
+        self.prior_type = prior_type
+        self.prior_mean = prior_mean
+        if prior_type == 'gaussian':
+            self.prior_cov_inverse = np.diag(1. / prior_std ** 2)
+            self.constant_prior_term = -self._log_sqrt_det(self.prior_cov_inverse)
+        elif prior_type == 'uniform':
+            # log( (b-a)^n )
+            self.prior_cov_inverse = None
+            self.constant_prior_term = np.sum(np.log(np.diff(prior_bounds, axis=1)))
+            # gaussian population density constant now does not cancel out
+            self.constant_prior_term += np.log((2*np.pi)**(-prior_mean.size/2))
+        else:
+            raise ValueError(f'prior_type must be either "gaussian" or "uniform", but is {prior_type}')
+
         # some constants
         self.n_sim, self.n_samples, n_posterior_params = param_samples.shape
-        if param_dim is None:
-            self.param_dim = self.prior_mean.size
-        else:
-            self.param_dim = param_dim
+        self.param_dim = self.prior_mean.size
 
         # prepare covariates
         self.covariates = covariates
@@ -112,7 +131,6 @@ class ObjectiveFunctionNLME:
             self.param_samples_cov = self.param_samples
 
         # prepare computation of loss
-        self.log_sqrt_det_sigma = self._log_sqrt_det(self.prior_cov_inverse)
         self.log_n_samples = np.log(self.n_samples)
 
         # some placeholders
@@ -171,7 +189,9 @@ class ObjectiveFunctionNLME:
                                                             params=beta)
 
         # compute parts of loss
-        part_one = self.n_sim * (self._log_sqrt_det(psi_inverse) - self.log_n_samples - self.log_sqrt_det_sigma)
+        # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
+        # uniform prior: constant_prior_term is log of (b-a)^n
+        part_one = self.n_sim * (self._log_sqrt_det(psi_inverse) - self.log_n_samples + self.constant_prior_term)
         expectation_log_sum = self._helper_log_sum(beta, psi_inverse)
 
         # compute negative log-likelihood
@@ -181,30 +201,6 @@ class ObjectiveFunctionNLME:
         if self.penalize_correlations is not None:
             nll += self.penalize_correlations * np.sum(np.abs(psi_inverse[self.param_dim * 2:]))
         return nll
-
-    def empirical_bayes(self, individual_params: np.ndarray) -> float:
-        """same as call function but uses preset population parameters and varying samples"""
-        # plug individual parameters into loss function
-        self.update_param_samples(individual_params[np.newaxis, np.newaxis, :])
-        # compute loss with precomputed population parameters (uses updated samples)
-        expectation_log_sum = self._helper_log_sum(self.beta, self.psi_inverse)
-
-        # compute negative log-likelihood
-        nll = -(self.part_one + expectation_log_sum)
-
-        # add penalty for correlations
-        if self.penalize_correlations is not None:
-            nll += self.penalize_correlations * np.sum(np.abs(self.psi_inverse[self.param_dim * 2:]))
-        return nll
-
-    def precompute_pop_params(self, vector_params: np.ndarray) -> None:
-        """precompute population parameters for faster computation of individual parameters"""
-        self.beta = vector_params[:self.param_dim]
-        psi_inverse_vector = vector_params[self.param_dim:]
-        self.psi_inverse = self.get_inverse_covariance(psi_inverse_vector)
-        self.part_one = self.n_sim * (self._log_sqrt_det(self.psi_inverse) -
-                                      self.log_n_samples - self.log_sqrt_det_sigma)
-        return
 
     @staticmethod
     @jit(nopython=True)
@@ -219,7 +215,7 @@ class ObjectiveFunctionNLME:
         if self.covariance_format == 'diag':
             # psi = log of diagonal entries since entries must be positive
             psi_inverse = np.diag(np.exp(psi_inverse_vector))
-        else:
+        elif self.covariance_format == 'cholesky':
             # vector to triangular matrix
             psi_inverse_lower = np.zeros((self.param_dim, self.param_dim))
             psi_inverse_lower[np.diag_indices(self.param_dim)] = 1
@@ -227,6 +223,9 @@ class ObjectiveFunctionNLME:
 
             psi_inverse_diag = np.diag(np.exp(psi_inverse_vector[:self.param_dim]))
             psi_inverse = psi_inverse_lower.dot(psi_inverse_diag).dot(psi_inverse_lower.T)
+        else:
+            raise ValueError(f'covariance_format must be either "diag" or "cholesky", '
+                             f'but is {self.covariance_format}')
         return psi_inverse
 
     def get_covariance(self, psi_inverse_vector: np.ndarray) -> np.ndarray:
@@ -238,10 +237,13 @@ class ObjectiveFunctionNLME:
         if self.covariance_format == 'diag':
             # psi = log of diagonal entries since entries must be positive
             psi_inv_vector = -np.log(psi.diagonal())
-        else:
+        elif self.covariance_format == 'cholesky':
             # triangular matrix to vector
             psi_inv = np.linalg.inv(psi)
             lu, d, perm = ldl_decomposition(psi_inv)
             psi_inv_lower = lu[perm, :][np.tril_indices(self.param_dim, k=-1)]
             psi_inv_vector = np.concatenate((np.log(d.diagonal()), psi_inv_lower))
+        else:
+            raise ValueError(f'covariance_format must be either "diag" or "cholesky", '
+                             f'but is {self.covariance_format}')
         return psi_inv_vector

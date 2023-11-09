@@ -28,7 +28,7 @@ function find_first_above_t0(t0)
 end
 
 
-function simulateLargeModel(t_0, delta1_m0, delta2, e0_m0, k2_m0_scale, k2, k1_m0, r0_m0, gamma, offset, sigma)
+function simulateLargeModel(t_0, delta1_m0, delta2, e0_m0, k2_m0_scale, k2, k1_m0, r0_m0, gamma, offset)
 
     simulations = Array{Float64}(undef, 180)
 

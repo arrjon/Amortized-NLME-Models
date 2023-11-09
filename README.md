@@ -17,8 +17,7 @@ You can install the two main dependencies using the package manager [pip](https:
 - [BayesFlow](https://bayesflow.org): `pip install bayesflow` 
 - [PyPesto](https://pypesto.readthedocs.io): `pip install pypesto`
 
-Then you can clone the AmortizedNLME package using the `git clone` command
-and install the requirements from the `requirements.txt` file.
+Then you can clone the AmortizedNLME package using the `git clone`.
 
 ## Simulation and Training Phase using BayesFlow
 Import the necessary packages
