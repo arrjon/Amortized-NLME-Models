@@ -160,7 +160,6 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([-3, -3, -1, 5, 0, 0, 0, -1])
         prior_cov = np.diag([5, 5, 5, 5, 5, 2, 5, 2])
-
         self.prior_type = 'normal'
 
         super().__init__(name=name,

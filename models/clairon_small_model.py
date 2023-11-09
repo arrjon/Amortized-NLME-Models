@@ -178,7 +178,6 @@ class ClaironSmallModel(NlmeBaseAmortizer):
     def __init__(self, name: str = 'ClaironModel', network_idx: int = -1, load_best: bool = False):
         # define names of parameters
         param_names = ['fM2', 'fM3', 'theta', 'deltaV', 'deltaS',
-                       # 'error_1',
                        'error_prop']
 
         # define prior values (for log-parameters)
@@ -255,7 +254,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
          self.n_dense_layers_in_coupling,
          self.coupling_design) = combinations[model_idx]
 
-        model_name = f'amortizer-clairon' \
+        model_name = f'amortizer-clairon-{self.prior_type}' \
                      f'-{self.n_coupling_layers}layers' \
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
                      f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \

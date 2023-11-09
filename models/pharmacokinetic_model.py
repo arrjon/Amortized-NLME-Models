@@ -188,6 +188,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([-5, 6.5, 2.5, 2.5, 6.5, 0, 6.5, -3, -3, -3, 0])
         prior_cov = np.diag(np.array([4.5, 1, 1, 1, 1, 1, 1, 4.5, 4.5, 4.5, 1]))
+        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -456,7 +457,8 @@ def nonmem_best_results(full_param_names):
                                                  'var-$\\theta_4-\eta_3$',
                                                  'var-$\eta_4$']
                         + corr_names_nonmem + list(raw_data.columns[-3:]))
-    # raw_data.columns = full_param_names[:10] + full_param_names[25:29] + corr_names_nonmem + list(raw_data.columns[-3:])
+    # raw_data.columns = full_param_names[:10] +
+    # full_param_names[25:29] + corr_names_nonmem + list(raw_data.columns[-3:])
     # log transform population parameters
     raw_data[full_param_names[:10]] = raw_data[full_param_names[:10]].abs().apply(np.log)
     # add variances
@@ -473,7 +475,7 @@ def nonmem_best_results(full_param_names):
     results_to_compare = raw_data[full_param_names[:30] + corr_names_nonmem].values
 
     # get best results
-    pop_mean_nonmem = results_to_compare[0, :11]  #:17]
+    pop_mean_nonmem = results_to_compare[0, :11]
     pop_cov_nonmem = np.diag(results_to_compare[0, 11:-6])
     pop_cov_nonmem[pop_cov_nonmem == 0] = 0.008
     # todo: corr missing
