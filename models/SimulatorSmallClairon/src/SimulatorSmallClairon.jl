@@ -58,7 +58,7 @@ function simulateSmallClairon(
     # variable, which in this case should be `V`
     affectCounter!(integrator) = integrator.u[3] += dose_amount
     cbCounter = PresetTimeCallback(dosetimes, affectCounter!)
-    
+
     # Set `tDose` to the dosetime
     affectTDose!(integrator) = integrator.u[4] = integrator.t
     cbTDose = PresetTimeCallback(dosetimes, affectTDose!)

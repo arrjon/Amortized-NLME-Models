@@ -219,7 +219,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         if model_idx >= len(combinations):
             return None
 
-        self.n_epochs = 1000
+        self.n_epochs = 750
         (self.split_summary,
          self.bidirectional_LSTM,
          self.n_coupling_layers,
@@ -478,7 +478,7 @@ def nonmem_best_results(full_param_names):
     pop_mean_nonmem = results_to_compare[0, :11]
     pop_cov_nonmem = np.diag(results_to_compare[0, 11:-6])
     pop_cov_nonmem[pop_cov_nonmem == 0] = 0.008
-    # todo: corr missing
+    # todo: load corr
     # raw_data[['eta_1_eta_0', 'eta_2_eta_1', 'eta_3_eta_2']].values[0]
 
     return pop_mean_nonmem, pop_cov_nonmem
