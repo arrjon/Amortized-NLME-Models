@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import numpy as np
 import matplotlib.pyplot as plt
 from functools import partial
@@ -222,8 +225,9 @@ class NlmeBaseAmortizer(ABC):
             input_list = []
             for d in data:
                 # make bayesflow dict
-                input_list.append({'summary_conditions': d})
+                input_list.append({'summary_conditions': d[np.newaxis,:]})
             posterior_draws = self.amortizer.sample_loop(input_list, n_samples=n_samples)
+            posterior_draws = posterior_draws.reshape((len(data), n_samples, self.n_params))
         return self._reconfigure_samples(posterior_draws)
 
     def generate_simulations_from_prior(self,

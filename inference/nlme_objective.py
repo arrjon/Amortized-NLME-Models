@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import numpy as np
 from scipy.special import logsumexp
 from scipy.linalg import ldl as ldl_decomposition

@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 # minor stuff
 from functools import partial
 from typing import Optional, Union
+from datetime import datetime
 import itertools
 
 from inference.base_nlme_model import NlmeBaseAmortizer, configure_input, batch_gaussian_prior, batch_uniform_prior
@@ -231,7 +232,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                                         prior_stds=self.prior_std)
         return
 
-    def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> Optional[str]:
+    def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> str:
 
         # load best
         if load_best:
@@ -245,8 +246,14 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design))
 
-        if model_idx >= len(combinations):
-            return None
+        if model_idx >= len(combinations) or model_idx < 0:
+            model_name = f'amortizer-clairon-{self.prior_type}' \
+                         f'-{self.n_coupling_layers}layers' \
+                         f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
+                         f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
+                         f'-{self.n_epochs}epochs' \
+                         f'-{datetime.now().strftime("%Y-%m-%d_%H-%M")}'
+            return model_name
 
         self.n_epochs = 500
         (self.bidirectional_LSTM,
@@ -314,55 +321,62 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             return np.stack(patients_data, axis=0), np.stack(patients_covariates, axis=0)
         return np.stack(patients_data, axis=0)
 
-    def print_and_plot_example(self, params: Optional[np.ndarray] = None) -> None:
+    def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         if params is None:
-            params = self.prior(1)['prior_draws']
+            params = self.prior(1)['prior_draws'][0]
 
-        sample_y = batch_simulator(param_batch=params, with_noise=False)
-        y, t_measurements, dose_amount, doses_time_points = convert_bf_to_observables(sample_y)
+        output = batch_simulator(params)
+        ax = self.prepare_plotting(output, params)
 
-        # plot the observed data
-        fig, ax = plt.subplots(2, 2, sharex='all', sharey='all', figsize=(10, 5))
-        ax[0, 0].scatter(t_measurements, y, label='measurements')
-        ax[0, 0].vlines(doses_time_points, 0, dose_amount, color='red', label='dosing events')
-
-        # noisy
-        sample_y = batch_simulator(param_batch=params, t_measurements=t_measurements,
-                                   t_doses=doses_time_points)
-        y, t_measurements, dose_amount, doses_time_points = convert_bf_to_observables(sample_y)
-        ax[1, 0].scatter(t_measurements, y)
-        ax[1, 0].vlines(doses_time_points, 0, dose_amount, color='red')
-
-        # plot the full data
-        continuous_y = batch_simulator(param_batch=params, t_doses=doses_time_points, with_noise=False,
-                                       t_measurements=np.linspace(0, 500, 100))
-        y, t_measurements, dose_amount, doses_time_points = convert_bf_to_observables(continuous_y)
-        # plot the data
-        ax[0, 1].plot(t_measurements, y)
-        ax[0, 1].vlines(doses_time_points, 0, dose_amount, color='red')
-
-        continuous_y = batch_simulator(param_batch=params, t_doses=doses_time_points,
-                                       t_measurements=np.linspace(0, 500, 100))
-        y, t_measurements, dose_amount, doses_time_points = convert_bf_to_observables(continuous_y)
-        # plot the data
-        ax[1, 1].plot(t_measurements, y)
-
-        ax[0, 0].vlines(doses_time_points, 0, np.max(y), color='red')
-        ax[0, 1].vlines(doses_time_points, 0, np.max(y), color='red')
-        ax[1, 0].vlines(doses_time_points, 0, np.max(y), color='red')
-        ax[1, 1].vlines(doses_time_points, 0, np.max(y), color='red')
-        ax[0, 0].hlines(2500, xmin=0, xmax=500, linestyles='--', color='green', label='censoring')
-        ax[0, 1].hlines(2500, xmin=0, xmax=500, linestyles='--', color='green')
-        ax[1, 0].hlines(2500, xmin=0, xmax=500, linestyles='--', color='green')
-        ax[1, 1].hlines(2500, xmin=0, xmax=500, linestyles='--', color='green')
-
-        ax[1, 0].set_xlabel('Time (in days)')
-        ax[1, 1].set_xlabel('Time (in days)')
-        ax[0, 0].set_ylabel('Measurements')
-        ax[0, 0].legend()
-
+        plt.title(f'Patient Simulation')
+        plt.legend()
         plt.show()
         return
+
+    @staticmethod
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+        # convert BayesFlow format to observables
+        y, t_measurements, dose_amount, doses_time_points = convert_bf_to_observables(data)
+        t_measurement_full = np.linspace(0, t_measurements[-1] + 100, 100)
+
+        # simulate data
+        sim_data = batch_simulator(param_batch=params,
+                                   t_measurements=t_measurement_full,
+                                   t_doses=doses_time_points,
+                                   with_noise=False,
+                                   convert_to_bf_batch=False)
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=(10, 5), tight_layout=True)
+
+        if len(params.shape) == 1:  # so not (batch_size, params)
+            # just a single parameter set
+            # plot simulated data
+            ax.plot(t_measurement_full, sim_data, 'b', label='simulation')
+        else:
+            # calculate median and quantiles
+            y_median = np.median(sim_data, axis=0)
+            y_quantiles = np.percentile(sim_data, [2.5, 97.5], axis=0)
+
+            # plot simulated data
+            ax.fill_between(t_measurement_full, y_quantiles[0], y_quantiles[1],
+                            alpha=0.2, color='orange')
+            ax.plot(t_measurement_full, y_median, 'b', label='median')
+
+        # plot observed data
+        ax.scatter(t_measurements, y, color='b', label='measurements')
+
+        # plot dosing events
+        ax.vlines(doses_time_points, 0, 2500,
+                  color='grey', alpha=0.5, label='dosing events')
+
+        # plot censoring
+        ax.hlines(2500, xmin=0, xmax=t_measurement_full[-1], linestyles='--',
+                  color='green', label='censoring')
+
+        ax.set_xlabel('Time (in days)')
+        ax.set_ylabel('Measurements')
+        return ax
 
 
 def get_measurement_time_points() -> np.ndarray:

@@ -1,12 +1,13 @@
+#!/usr/bin/env python
+# coding: utf-8
+
 import numpy as np
-from scipy.linalg import ldl as ldl_decomposition
 from tqdm import tqdm
 from typing import Union, Optional
 from functools import partial
 
 # optimization
-from pypesto import Result, Objective, Problem, FD, HistoryOptions, optimize, startpoint, engine
-from sklearn.covariance import GraphicalLassoCV
+from pypesto import Result, Objective, Problem, FD, HistoryOptions, optimize, engine
 
 from inference.nlme_objective import ObjectiveFunctionNLME
 from inference.helper_functions import create_param_names_opt

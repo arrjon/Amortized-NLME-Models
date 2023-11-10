@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from functools import partial
 from typing import Optional
+from datetime import datetime
 import itertools
 
 from inference.base_nlme_model import NlmeBaseAmortizer
@@ -95,7 +96,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
         print(f'Using the model {name}')
 
-    def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> Optional[str]:
+    def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> str:
 
         # load best
         if load_best:
@@ -109,8 +110,14 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design))
 
-        if model_idx >= len(combinations):
-            return None
+        if model_idx >= len(combinations) or model_idx < 0:
+            model_name = f'amortizer-large-fro' \
+                         f'-{self.n_coupling_layers}layers' \
+                         f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
+                         f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
+                         f'-{self.n_epochs}epochs' \
+                         f'-{datetime.now().strftime("%Y-%m-%d_%H-%M")}'
+            return model_name
 
         self.n_epochs = 750
         (self.bidirectional_LSTM,
@@ -136,34 +143,68 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         return simulator
 
     @staticmethod
-    def load_data(n_data: int,
-                  load_eGFP: bool = True,
-                  load_d2eGFP: bool = False) -> (np.ndarray, Optional[np.ndarray]):
-        if not load_eGFP and not load_d2eGFP:
-            obs_data = load_single_cell_data('data_random_cells_large_model', n_data)
-            true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters_large_model.csv',
-                                              index_col=0, header=0).loc[f'{n_data}'].values
+    def load_data(n_data: Optional[int] = None,
+                  load_egfp: bool = True, load_d2egfp: bool = False,
+                  synthetic: bool = False) -> np.ndarray:
+        if synthetic:
+            # load synthetic data which is saved in csv
+            obs_data = load_single_cell_data('data_random_cells_large_model', real_data=False)
+            if n_data is not None:
+                obs_data = obs_data[:n_data]
         else:
-            obs_data = load_multi_experiment_data(n_data, load_eGFP=load_eGFP, load_d2eGFP=load_d2eGFP)
-            true_pop_parameters = None
-        return obs_data, true_pop_parameters
+            obs_data = load_multi_experiment_data(load_egfp=load_egfp, load_d2egfp=load_d2egfp)
+            if n_data is not None:
+                if load_egfp and load_d2egfp:
+                    obs_data = [data[:int(n_data / 2)] for data in obs_data]
+                else:
+                    obs_data = obs_data[:n_data]
+        return obs_data
 
-    def print_and_plot_example(self, params: Optional[np.ndarray] = None) -> None:
+    @staticmethod
+    def load_synthetic_parameter(n_data: int) -> np.ndarray:
+        true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters_large_model.csv',
+                                          index_col=0, header=0).loc[f'{n_data}'].values
+        return true_pop_parameters
+
+    def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         if params is None:
-            params = self.prior(1)['prior_draws']
+            params = self.prior(1)['prior_draws'][0]
 
-        # give parameters names and display them
-        sample_y = batch_simulator(param_batch=params, n_obs=180, with_noise=False)
-        sample_y_noisy = batch_simulator(param_batch=params, n_obs=180, with_noise=True)
-        t_points = np.linspace(start=1 / 6, stop=30, num=180, endpoint=True)
+        output = batch_simulator(params, n_obs=180, with_noise=True)
+        ax = self.prepare_plotting(output, params)
 
-        # Plot
-        plt.plot(t_points, sample_y, 'b', label='model simulation')
-        plt.plot(t_points, sample_y_noisy, 'g', label='simulation with noise')
-        plt.xlabel('$t\, [h]$')
-        plt.ylabel('fluorescence intensity [a.u.]')
-        plt.title('Simulations')
+        plt.title(f'Cell Simulation')
         plt.legend()
-
         plt.show()
         return
+
+    @staticmethod
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+        # simulate data
+        sim_data = batch_simulator(param_batch=params, n_obs=180, with_noise=False)
+        t_measurement = np.linspace(start=1 / 6, stop=30, num=180, endpoint=True)
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=(10, 5), tight_layout=True)
+
+        if len(params.shape) == 1:  # so not (batch_size, params)
+            # just a single parameter set
+            # plot simulated data
+            ax.plot(t_measurement, sim_data, 'b', label='simulated cell')
+        else:
+            # remove channel dimension of bayesflow
+            sim_data = sim_data[:, :, 0]
+            # calculate median and quantiles
+            y_median = np.median(sim_data, axis=0)
+            y_quantiles = np.percentile(sim_data, [2.5, 97.5], axis=0)
+
+            # plot simulated data
+            ax.fill_between(t_measurement, y_quantiles[0], y_quantiles[1],
+                            alpha=0.2, color='b')
+            ax.plot(t_measurement, y_median, 'b', label='median')
+
+        # plot observed data
+        ax.scatter(t_measurement, data, color='b', label='measurements')
+        ax.set_xlabel('$t\, [h]$')
+        ax.set_ylabel('fluorescence intensity [a.u.]')
+        return ax

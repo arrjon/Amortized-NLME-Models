@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from typing import Optional, Union
 from functools import partial
+from datetime import datetime
 import itertools
 
 from inference.base_nlme_model import NlmeBaseAmortizer
@@ -32,10 +33,11 @@ def ode_analytical_sol(t: np.ndarray, delta: float, gamma: float, k_m0_scale: fl
         with the first row being the value of m at each time point, and the second row being the
         value of p at each time point.
     """
-    m = np.exp(-delta * (t - t_0))
-    m[t - t_0 < 0] = 0
-    p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
-    p[t - t_0 < 0] = 0
+    with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+        m = np.exp(-delta * (t - t_0))
+        m[t - t_0 < 0] = 0
+        p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
+        p[t - t_0 < 0] = 0
     return np.row_stack((m, p))
 
 
@@ -143,7 +145,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
 
         print(f'Using the model {name}')
 
-    def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> Optional[str]:
+    def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> str:
 
         # load best
         if load_best:
@@ -157,8 +159,14 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design))
 
-        if model_idx >= len(combinations):
-            return None
+        if model_idx >= len(combinations) or model_idx < 0:
+            model_name = f'amortizer-small-fro' \
+                         f'-{self.n_coupling_layers}layers' \
+                         f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
+                         f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
+                         f'-{self.n_epochs}epochs' \
+                         f'-{datetime.now().strftime("%Y-%m-%d_%H-%M")}'
+            return model_name
 
         self.n_epochs = 500
         (self.bidirectional_LSTM,
@@ -184,46 +192,80 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         return simulator
 
     @staticmethod
-    def load_data(n_data: int,
-                  load_eGFP: bool = True, load_d2eGFP: bool = False) -> (np.ndarray, Optional[np.ndarray]):
-        if not load_eGFP and not load_d2eGFP:
-            obs_data = load_single_cell_data('data_random_cells', n_data)
-            true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters.csv',
-                                              index_col=0, header=0).loc[f'{n_data}'].values
+    def load_data(n_data: Optional[int] = None,
+                  load_egfp: bool = True, load_d2egfp: bool = False,
+                  synthetic: bool = False) -> np.ndarray:
+        if synthetic:
+            # load synthetic data which is saved in csv
+            obs_data = load_single_cell_data('data_random_cells', real_data=False)
+            if n_data is not None:
+                obs_data = obs_data[:n_data]
         else:
-            obs_data = load_multi_experiment_data(n_data, load_eGFP=load_eGFP, load_d2eGFP=load_d2eGFP)
-            true_pop_parameters = None
-        return obs_data, true_pop_parameters
+            obs_data = load_multi_experiment_data(load_egfp=load_egfp, load_d2egfp=load_d2egfp)
+            if n_data is not None:
+                if load_egfp and load_d2egfp:
+                    obs_data = [data[:int(n_data/2)] for data in obs_data]
+                else:
+                    obs_data = obs_data[:n_data]
+        return obs_data
 
-    def print_and_plot_example(self, params: Optional[np.ndarray] = None) -> None:
+    @staticmethod
+    def load_synthetic_parameter(n_data: int) -> np.ndarray:
+        true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters.csv',
+                                          index_col=0, header=0).loc[f'{n_data}'].values
+        return true_pop_parameters
+
+    def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         if params is None:
-            params = self.prior(1)['prior_draws']
+            params = self.prior(1)['prior_draws'][0]
 
-        # give parameters names and display them
-        sample_y = batch_simulator(param_batch=params, n_obs=180, with_noise=False)
-        sample_y_noisy = batch_simulator(param_batch=params, n_obs=180, with_noise=True)
-        t_points = np.linspace(start=1 / 6, stop=30, num=180, endpoint=True)
+        output = batch_simulator(params, n_obs=180, with_noise=True)
+        ax = self.prepare_plotting(output, params)
 
-        # Plot
-        plt.plot(t_points, sample_y, 'b', label='model simulation')
-        plt.plot(t_points, sample_y_noisy, 'g', label='simulation with noise')
-        plt.xlabel('$t\, [h]$')
-        plt.ylabel('fluorescence intensity [a.u.]')
-        plt.title('Simulations')
+        plt.title(f'Cell Simulation')
         plt.legend()
-
         plt.show()
         return
 
+    @staticmethod
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+        # simulate data
+        sim_data = batch_simulator(param_batch=params, n_obs=180, with_noise=False)
+        t_measurement = np.linspace(start=1 / 6, stop=30, num=180, endpoint=True)
 
-def load_single_cell_data(file_name: str, number_data_points: int = None, real_data: bool = False) -> np.ndarray:
-    # excel=False -> csv format
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=(10, 5), tight_layout=True)
 
+        if len(params.shape) == 1:  # so not (batch_size, params)
+            # just a single parameter set
+            # plot simulated data
+            ax.plot(t_measurement, sim_data, 'b', label='simulated cell')
+        else:
+            # remove channel dimension of bayesflow
+            sim_data = sim_data[:, :, 0]
+            # calculate median and quantiles
+            y_median = np.median(sim_data, axis=0)
+            y_quantiles = np.percentile(sim_data, [2.5, 97.5], axis=0)
+
+            # plot simulated data
+            ax.fill_between(t_measurement, y_quantiles[0], y_quantiles[1],
+                            alpha=0.2, color='b')
+            ax.plot(t_measurement, y_median, 'b', label='median')
+
+        # plot observed data
+        ax.scatter(t_measurement, data, color='b', label='measurements')
+        ax.set_xlabel('$t\, [h]$')
+        ax.set_ylabel('fluorescence intensity [a.u.]')
+        return ax
+
+
+def load_single_cell_data(file_name: str,
+                          real_data: bool) -> np.ndarray:
     if real_data:
         # real data
         data = pd.read_excel(f'data/froehlich_eGFP/{file_name}.xlsx', index_col=0, header=None)
     else:
-        # synthetic data
+        # synthetic data which is saved as csv
         data = pd.read_csv(f'data/synthetic/{file_name}.csv', index_col=0, header=0)
 
     # convert to right format
@@ -234,43 +276,38 @@ def load_single_cell_data(file_name: str, number_data_points: int = None, real_d
     n_real_cells = data.columns.shape[0]
     n_time_points = data.index.shape[0]
     data = np.log(data.values.T).reshape(n_real_cells, n_time_points, 1)
-
-    if number_data_points is not None:
-        return data[:number_data_points]
-
     return data
 
 
-def load_multi_experiment_data(data_points: int = 50,
-                               load_eGFP: bool = True,
-                               load_d2eGFP: bool = True) -> Union[np.ndarray, list[np.ndarray]]:
-    names_eGFP = ['20160427_mean_eGFP', '20160513_mean_eGFP', '20160603_mean_eGFP']
-    names_d2eGFP = ['20160427_mean_d2eGFP', '20160513_mean_d2eGFP', '20160603_mean_d2eGFP']
+def load_multi_experiment_data(load_egfp: bool, load_d2egfp: bool) -> Union[np.ndarray, list[np.ndarray]]:
+    # name of the files for the different experiments
+    names_egfp = ['20160427_mean_eGFP', '20160513_mean_eGFP', '20160603_mean_eGFP']
+    names_d2egfp = ['20160427_mean_d2eGFP', '20160513_mean_d2eGFP', '20160603_mean_d2eGFP']
 
-    if not load_eGFP and not load_d2eGFP:
+    if not load_egfp and not load_d2egfp:
         raise ValueError("At least one of the two options ('load_eGFP', 'load_d2eGFP') has to be True.")
-    data_eGFP = None  # only to silence warning
+    data_egfp = None  # only to silence warning
 
     # load data
-    if load_eGFP:
-        data_list_eGFP = []
-        for name in names_eGFP:
-            data_list_eGFP.append(load_single_cell_data(file_name=name,
-                                                        number_data_points=data_points,
+    if load_egfp:
+        data_list_egfp = []
+        for name in names_egfp:
+            data_list_egfp.append(load_single_cell_data(file_name=name,
                                                         real_data=True))
         # concatenate data: shape for BayesFlow
-        data_eGFP = np.concatenate(data_list_eGFP, axis=0)
-        if not load_d2eGFP:
-            return data_eGFP
+        data_egfp = np.concatenate(data_list_egfp, axis=0)
 
-    data_list_d2eGFP = []
-    for name in names_d2eGFP:
-        data_list_d2eGFP.append(load_single_cell_data(file_name=name,
-                                                      number_data_points=data_points,
+        if not load_d2egfp:
+            return data_egfp
+
+    data_list_d2egfp = []
+    for name in names_d2egfp:
+        data_list_d2egfp.append(load_single_cell_data(file_name=name,
                                                       real_data=True))
     # concatenate data: shape for BayesFlow
-    data_d2eGFP = np.concatenate(data_list_d2eGFP, axis=0)
-    if not load_eGFP:
-        return data_d2eGFP
+    data_d2egfp = np.concatenate(data_list_d2egfp, axis=0)
 
-    return [data_eGFP, data_d2eGFP]
+    if not load_egfp:
+        return data_d2egfp
+
+    return [data_egfp, data_d2egfp]

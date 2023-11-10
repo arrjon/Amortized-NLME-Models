@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 # minor stuff
 from functools import partial
 from typing import Optional
+from datetime import datetime
 import itertools
 
 from inference.base_nlme_model import NlmeBaseAmortizer
@@ -86,7 +87,7 @@ def batch_simulator(param_batch: np.ndarray,
          theta_7, theta_10, theta_12, theta_13, eta_4) = np.exp(log_params)
         jl_parameter = jlconvert(jl.Vector[jl.Float64], np.array([theta_1, theta_2, theta_4,
                                                                   theta_5, theta_6, theta_7,
-                                                                  theta_7, theta_10,  eta_4]))
+                                                                  theta_7, theta_10, eta_4]))
 
         # convert to julia types
         jl_t_doses = jlconvert(jl.Vector[jl.Float64], t_doses)
@@ -147,7 +148,7 @@ def convert_to_bf_format(y: np.ndarray,
 
 
 def convert_bf_to_observables(output: np.ndarray,
-                              scaling_time: float = 4000.) -> (np.ndarray, np.ndarray, float, float):
+                              scaling_time: float = 4000.) -> (np.ndarray, np.ndarray, np.ndarray, float, float):
     """
     Convert the output of the simulator to a reasonable format for plotting
     Args:
@@ -186,8 +187,8 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                        ]
 
         # define prior values (for log-parameters)
-        prior_mean = np.array([-5, 6.5, 2.5, 2.5, 6.5, 0, 6.5, -3, -3, -3, 0])
-        prior_cov = np.diag(np.array([4.5, 1, 1, 1, 1, 1, 1, 4.5, 4.5, 4.5, 1]))
+        prior_mean = np.array([-5, 6.5, 2.5, 2.5, 6.5, 0, 6.5, -3, -1, -1, 0])
+        prior_cov = np.diag(np.array([4.5, 1, 1, 1, 1, 1, 1, 4.5, 2, 2, 1]))
         self.prior_type = 'normal'
 
         super().__init__(name=name,
@@ -200,7 +201,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
         print('Using the PharmacokineticModel')
 
-    def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> Optional[str]:
+    def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> str:
         self.n_obs_per_measure = 2
 
         # load best
@@ -216,8 +217,15 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         combinations = list(itertools.product(split_summary, bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design))
 
-        if model_idx >= len(combinations):
-            return None
+        if model_idx >= len(combinations) or model_idx < 0:
+            model_name = f'amortizer-pharma' \
+                         f'-{self.n_coupling_layers}layers' \
+                         f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
+                         f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
+                         f'{"-split_summary" if self.split_summary else ""}' \
+                         f'-{self.n_epochs}epochs' \
+                         f'-{datetime.now().strftime("%Y-%m-%d_%H-%M")}'
+            return model_name
 
         self.n_epochs = 750
         (self.split_summary,
@@ -263,30 +271,80 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         new_sims['parameters'] = np.array(new_sims['parameters'])
         return new_sims
 
-    @staticmethod
-    def load_data(n_data: int = None, file_name: str = 'data/Suni_PK_final.csv') -> list[np.ndarray]:
-        data = load_data(file_name=file_name, number_data_points=n_data)
+    def load_data(self,
+                  n_data: Optional[int] = None,
+                  file_name: str = 'data/pharma/Suni_PK_final.csv',
+                  synthetic: bool = False) -> list[np.ndarray]:
+        if not synthetic:
+            data = load_data(file_name=file_name, number_data_points=n_data)
+        else:
+            assert n_data is not None, 'n_data must be given for synthetic data'
+            params = self.prior(n_data)['prior_draws']
+            data = batch_simulator(params)
         return data
 
-    def print_and_plot_example(self, params: Optional[np.ndarray] = None) -> None:
+    def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         if params is None:
-            params = self.prior(1)['prior_draws']
+            params = self.prior(1)['prior_draws'][0]
 
         output = batch_simulator(params)
-        (y_sim, y_time_points,
-         doses_time_points, dos,
-         wt_sim) = convert_bf_to_observables(output)
+        ax = self.prepare_plotting(output, params)
 
-        plt.figure(tight_layout=True, figsize=(10, 5))
-        plt.scatter(y_time_points, y_sim[:, 0], color='blue', label=f'simulated $A_{2}$')
-        plt.scatter(y_time_points, y_sim[:, 1], color='red', label=f'simulated $A_{3}$')
-        plt.vlines(doses_time_points, 0, np.max(y_sim), color='grey', linestyles='--',
-                   alpha=0.5, label='dose')
-        plt.title(f'Patient Simulation with DOS={np.round(dos, 2)}, '
-                  f'wt={np.round(wt_sim, 2)}')
+        plt.title(f'Patient Simulation')
         plt.legend()
         plt.show()
         return
+
+    @staticmethod
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+        # convert BayesFlow format to observables
+        y, t_measurement, doses_time_points, dos, wt = convert_bf_to_observables(data)
+        t_measurement_full = np.linspace(0, t_measurement[-1] + 100, 100)
+
+        # simulate data
+        sim_data = batch_simulator(param_batch=params,
+                                   t_measurement=t_measurement_full,
+                                   t_doses=doses_time_points,
+                                   wt=wt,
+                                   dos=dos,
+                                   with_noise=False,
+                                   convert_to_bf_batch=False)
+
+        if ax is None:
+            _, ax = plt.subplots(1, 1, figsize=(10, 5), tight_layout=True)
+
+        if len(params.shape) == 1:  # so not (batch_size, params)
+            # just a single parameter set
+            # plot simulated data
+            ax.plot(t_measurement_full, sim_data[:, 0], 'orange', label='simulated $A_{2}$')
+            ax.plot(t_measurement_full, sim_data[:, 1], 'red', label='simulated $A_{3}$')
+        else:
+            y1 = sim_data[:, :, 0]
+            y2 = sim_data[:, :, 1]
+            # calculate median and quantiles
+            y1_median = np.median(y1, axis=0)
+            y2_median = np.median(y2, axis=0)
+
+            y1_quantiles = np.percentile(y1, [2.5, 97.5], axis=0)
+            y2_quantiles = np.percentile(y2, [2.5, 97.5], axis=0)
+
+            # plot simulated data
+            ax.fill_between(t_measurement_full, y1_quantiles[0], y1_quantiles[1],
+                            alpha=0.2, color='orange')
+            ax.plot(t_measurement_full, y1_median, 'orange', label='median $A_{2}$')
+
+            ax.fill_between(t_measurement_full, y2_quantiles[0], y2_quantiles[1],
+                            alpha=0.2, color='red')
+            ax.plot(t_measurement_full, y2_median, 'red', label='median $A_{3}$')
+
+        # plot observed data
+        ax.scatter(t_measurement, y[:, 0], color='orange', label='observed $A_{2}$')
+        ax.scatter(t_measurement, y[:, 1], color='red', label='observed $A_{3}$')
+
+        # plot dosing events
+        ax.vlines(doses_time_points, ax.get_ylim()[0], ax.get_ylim()[1],
+                  color='grey', alpha=0.5, label='dosing events')
+        return ax
 
 
 def convert_csv_to_simulation_data(csv_data: pd.DataFrame) -> list:
@@ -296,7 +354,8 @@ def convert_csv_to_simulation_data(csv_data: pd.DataFrame) -> list:
         csv_data:  pd.DataFrame
 
     Returns:
-        data_list: list of tuples (patient_id, wt, DOS, measurement_data_time, measurement_data_A2, measurement_data_A3)
+        data_list: list of tuples (patient_id, [measurement_data_A2, measurement_data_A3],
+                                   measurement_data_time, DOS, wt)
 
     """
     data_list = []
@@ -314,11 +373,11 @@ def convert_csv_to_simulation_data(csv_data: pd.DataFrame) -> list:
             continue
 
         measurements = np.stack((measurement_data_A2,
-                                 measurement_data_A3,
-                                 measurement_data_time), axis=1)
+                                 measurement_data_A3), axis=1)
 
         dosage_data = patient_data.loc[patient_data['EVID'] == 1, ['TIME']].to_numpy().flatten()
-        data_list.append([patient_id, measurements, dosage_data, dos, wt])
+        data_list.append([patient_id, measurements,
+                          measurement_data_time, dosage_data, dos, wt])
     return data_list
 
 
@@ -345,7 +404,8 @@ def read_csv_pharma(csv_file: str) -> pd.DataFrame:
 
 
 # load data from files
-def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv', number_data_points: int = None) -> list[np.ndarray]:
+def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv',
+              number_data_points: Optional[int] = None) -> list[np.ndarray]:
     data_raw = read_csv_pharma(file_name)
     data = convert_csv_to_simulation_data(data_raw)
 
@@ -355,9 +415,9 @@ def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv', number_data_poin
     # convert data to a BayesFlow format
     data_bayesflow = []
     for d in data:
-        patient_id, measurements, doses_time_points, dos, wt = d
-        observables = convert_to_bf_format(y=measurements[:, :2],
-                                           t_measurements=measurements[:, 2],
+        p_id, y, measurements, doses_time_points, dos, wt = d
+        observables = convert_to_bf_format(y=y,
+                                           t_measurements=measurements,
                                            doses_time_points=doses_time_points,
                                            dos=dos,
                                            wt=wt)

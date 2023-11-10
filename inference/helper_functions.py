@@ -1,8 +1,7 @@
-from typing import Union
+#!/usr/bin/env python
+# coding: utf-8
 
 import numpy as np
-import pandas as pd
-from scipy.linalg import ldl as ldl_decomposition
 
 from bayesflow.amortizers import AmortizedPosterior
 
