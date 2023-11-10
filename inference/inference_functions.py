@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import numpy as np
+import pandas as pd
 from tqdm import tqdm
 from typing import Union, Optional
 from functools import partial
@@ -10,64 +11,22 @@ from functools import partial
 from pypesto import Result, Objective, Problem, FD, HistoryOptions, optimize, engine
 
 from inference.nlme_objective import ObjectiveFunctionNLME
-from inference.helper_functions import create_param_names_opt
-
-from bayesflow.amortizers import AmortizedPosterior
-
-
-def create_boundaries_from_prior(
-        prior_mean: np.ndarray,
-        prior_std: np.ndarray,
-        n_covariates: int = 0,
-        covariates_bound: tuple = (-1, 1),
-        boundary_width_from_prior: float = 2.58,
-        covariance_format: str = 'diag'
-) -> (np.ndarray, np.ndarray):
-    param_dim = prior_mean.size
-    # define bounds for optimization
-
-    lb_means = prior_mean - boundary_width_from_prior * prior_std
-    ub_means = prior_mean + boundary_width_from_prior * prior_std
-
-    lb_var = np.log(1. / prior_std) - boundary_width_from_prior * prior_std
-    ub_var = np.log(1. / prior_std) + boundary_width_from_prior * prior_std
-
-    if n_covariates > 0:
-        param_dim += n_covariates
-        cov_mean_lb = np.ones(n_covariates) * covariates_bound[0]
-        cov_mean_ub = np.ones(n_covariates) * covariates_bound[1]
-        cov_var_lb = np.ones(n_covariates) * 0.01
-        cov_var_ub = np.ones(n_covariates) * 5
-        lower_bound = np.concatenate((lb_means, cov_mean_lb, lb_var, np.log(1. / cov_var_ub)))
-        upper_bound = np.concatenate((ub_means, cov_mean_ub, ub_var, np.log(1. / cov_var_lb)))
-
-    else:
-        lower_bound = np.concatenate((lb_means, lb_var))
-        upper_bound = np.concatenate((ub_means,ub_var))
-
-    if covariance_format == 'cholesky':
-        # add lower triangular part of covariance matrix
-        n_corr = param_dim * (param_dim - 1) // 2  # number of correlation parameters
-        lower_bound = np.concatenate((lower_bound, -boundary_width_from_prior * np.ones(n_corr)))
-        upper_bound = np.concatenate((upper_bound, boundary_width_from_prior * np.ones(n_corr)))
-
-    assert (lower_bound - upper_bound < 0).all(), 'lower bound must be smaller than upper bound'
-    return lower_bound, upper_bound
+from inference.helper_functions import create_param_names_opt, create_boundaries_from_prior
+from inference.base_nlme_model import NlmeBaseAmortizer
 
 
 def run_population_optimization(
-        bf_amortizer: AmortizedPosterior,
-        data: [np.ndarray, list],
+        individual_model: NlmeBaseAmortizer,
+        data: Union[np.ndarray, list[np.ndarray]],
         param_names: list,
         objective_function: Union[ObjectiveFunctionNLME, list[ObjectiveFunctionNLME]],
-        sample_posterior: callable,
         n_multi_starts: int = 1,
         n_samples_opt: int = 100,
-        lb: np.array = None,
-        ub: np.array = None,
-        x_fixed_indices: np.ndarray = None,
-        x_fixed_vals: np.ndarray = None,
-        file_name: str = None,
+        param_bounds: Optional[np.array] = None,
+        covariates_bounds: Optional[np.ndarray] = None,
+        x_fixed_indices: Optional[np.ndarray] = None,
+        x_fixed_vals: Optional[np.ndarray] = None,
+        file_name: Optional[str] = None,
         verbose: bool = False,
         trace_record: bool = False,
         multi_experiment: bool = False,
@@ -76,16 +35,26 @@ def run_population_optimization(
         result: Optional[Result] = None
 ):
     # set up pyPesto
-    param_names_opt = create_param_names_opt(bf_amortizer=bf_amortizer,
+    param_names_opt = create_param_names_opt(bf_amortizer=individual_model.amortizer,
                                              param_names=param_names,
                                              n_covariates=objective_function.n_covariates,
                                              multi_experiment=multi_experiment)
-
-    # bounds
-    if lb is None:
-        lb = -np.ones(len(param_names_opt)) * np.Inf
-    if ub is None:
-        ub = np.ones(len(param_names_opt)) * np.Inf
+    # create bounds if none are given
+    if param_bounds is None:
+        # automatically create boundaries
+        param_bounds = create_boundaries_from_prior(
+            prior_mean=individual_model.prior_mean,
+            prior_std=individual_model.prior_std,
+            prior_type=individual_model.prior_type,
+            prior_bounds=individual_model.prior_bounds if hasattr(individual_model, 'prior_bounds') else None,
+            boundary_width_from_prior=3,
+            covariates_bounds=covariates_bounds,  # only used if covariates are used
+            covariance_format=objective_function.covariance_format)
+    if x_fixed_indices is not None and x_fixed_vals is not None:
+        too_small_idx = x_fixed_vals < param_bounds[0, x_fixed_indices]
+        x_fixed_vals[too_small_idx] = param_bounds[0, x_fixed_indices][too_small_idx]
+        too_large_idx = x_fixed_vals > param_bounds[1, x_fixed_indices]
+        x_fixed_vals[too_large_idx] = param_bounds[1, x_fixed_indices][too_large_idx]
 
     # save optimizer trace
     history_options = HistoryOptions(trace_record=trace_record)
@@ -117,7 +86,7 @@ def run_population_optimization(
         # create objective function with samples
         objective_function = create_objective_with_samples(data=data,
                                                            objective_function=objective_function,
-                                                           sample_posterior=sample_posterior,
+                                                           sample_posterior=individual_model.draw_posterior_samples,
                                                            n_samples_opt=n_samples_opt,
                                                            multi_experiment=multi_experiment)
         # wrap finite difference around objective function
@@ -137,13 +106,17 @@ def run_population_optimization(
 
         # create pypesto problem
         pesto_problem = Problem(objective=pesto_objective,
-                                lb=lb, ub=ub,
+                                lb=param_bounds[0, :], ub=param_bounds[1, :],
                                 x_names=param_names_opt,
                                 x_scales=['log'] * len(param_names_opt),
                                 x_fixed_indices=x_fixed_indices,
                                 x_fixed_vals=x_fixed_vals)
         if verbose and run_idx == 0:
             pesto_problem.print_parameter_summary()
+            df = pd.DataFrame(pesto_problem.x_fixed_vals,
+                              index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],
+                              columns=['fixed value'])
+            print(df)
 
         # Run optimizations for different starting values
         result = optimize.minimize(
@@ -161,7 +134,7 @@ def run_population_optimization(
     # make final objective value comparable across samples
     objective_function = create_objective_with_samples(data=data,
                                                        objective_function=objective_function,
-                                                       sample_posterior=sample_posterior,
+                                                       sample_posterior=individual_model.draw_posterior_samples,
                                                        n_samples_opt=n_samples_opt * 100,
                                                        # always use more samples for final evaluation
                                                        # MC integration error reduces with sqrt(1/n_samples)
@@ -182,7 +155,7 @@ def run_population_optimization(
     else:
         pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
     pesto_problem = Problem(objective=pesto_objective,
-                            lb=lb, ub=ub,
+                            lb=param_bounds[0, :], ub=param_bounds[1, :],
                             x_names=param_names_opt,
                             x_scales=['log'] * len(param_names_opt),
                             x_fixed_indices=x_fixed_indices,
@@ -203,7 +176,7 @@ def create_objective_with_samples(data: Union[np.ndarray, list],
                                   n_samples_opt: int = 100,
                                   multi_experiment: bool = False,
                                   ) -> Union[ObjectiveFunctionNLME, list[ObjectiveFunctionNLME]]:
-    # create objective function with samples
+    # create objective function from samples
     # sample parameters from amortizer given observed data
     if not multi_experiment:
         param_samples = sample_posterior(data=data, n_samples=n_samples_opt)

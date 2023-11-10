@@ -61,7 +61,8 @@ def compute_log_sum(n_sim: int,
                     psi_inverse: np.ndarray,
                     prior_mean: Optional[np.ndarray] = None,
                     prior_cov_inverse: Optional[np.ndarray] = None,
-                    huber_loss_delta: Optional[float] = None) -> np.ndarray:
+                    huber_loss_delta: Optional[float] = None  # 1.5 times the median of the standard deviations
+                    ) -> np.ndarray:
     """compute log-sum-exp of second term in objective function with numba"""
     expectation_approx = np.zeros((n_sim, n_samples))
     for sim_idx, (p_sample, p_cov_sample) in enumerate(zip(param_samples, param_samples_cov)):
@@ -94,7 +95,7 @@ class ObjectiveFunctionNLME:
                  covariate_mapping: Optional[callable] = None,
                  penalize_correlations: Optional[float] = None,
                  huber_loss_delta: Optional[float] = None,
-                 prior_type: str = 'gaussian',
+                 prior_type: str = 'normal',
                  prior_bounds: Optional[np.ndarray] = None):
 
         self.model_name = model_name
@@ -107,7 +108,7 @@ class ObjectiveFunctionNLME:
 
         self.prior_type = prior_type
         self.prior_mean = prior_mean
-        if prior_type == 'gaussian':
+        if prior_type == 'normal':
             self.prior_cov_inverse = np.diag(1. / prior_std ** 2)
             self.constant_prior_term = -self._log_sqrt_det(self.prior_cov_inverse)
         elif prior_type == 'uniform':

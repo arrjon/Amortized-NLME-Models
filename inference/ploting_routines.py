@@ -18,7 +18,9 @@ def visualize_pesto_result(result: Result):
     cm_mapper = cm.ScalarMappable(norm=cm.colors.Normalize(vmin=0, vmax=np.max(c_id) + 1), cmap=cm.hsv)
     color_map = cm_mapper.to_rgba(c_id)
     visualize.waterfall(result, colors=color_map)
+
     visualize.parameters(result, colors=color_map)
+
     if result.optimize_result.history[0].options.trace_record:
         visualize.optimizer_history(result, colors=color_map)
     return

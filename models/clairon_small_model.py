@@ -273,8 +273,11 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         simulator = Simulator(batch_simulator_fun=partial(batch_simulator, with_noise=with_noise))
         return simulator
 
-    def load_data(self, n_data: Optional[int] = None, load_covariates: bool = False,
-                  synthetic: bool = False, seed: int = 42) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
+    def load_data(self,
+                  n_data: Optional[int] = None,
+                  load_covariates: bool = False,
+                  synthetic: bool = False,
+                  seed: int = 42) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         if synthetic:
             assert isinstance(n_data, int)
             np.random.seed(seed)

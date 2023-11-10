@@ -44,20 +44,21 @@ def split_data_2d(i: int, x: tf.Tensor):
 
 class NlmeBaseAmortizer(ABC):
     """
-       This model class contains all information needed for simulation, entity-posterior inference.
+       This model class contains all information needed for simulation, individual specific posterior inference.
     """
 
-    def __init__(self, name: str = 'NLMEModel',
+    def __init__(self, name: str,
+                 param_names: list,
                  network_idx: int = -1,
                  load_best: bool = False,
-                 param_names: Optional[list] = None,
                  prior_mean: Optional[np.ndarray] = None,
                  prior_cov: Optional[np.ndarray] = None,
+                 prior_type: str = 'normal',
                  n_obs: Optional[int] = None, ):
 
         self.name = name
         # define names of parameters
-        self.param_names = [] if param_names is None else param_names
+        self.param_names = param_names
         self.log_param_names = ['$\log$ ' + name for name in self.param_names]
         self.n_params = len(self.param_names)
 
@@ -65,7 +66,7 @@ class NlmeBaseAmortizer(ABC):
         self.prior_mean: np.ndarray = np.empty(self.n_params) if prior_mean is None else prior_mean
         self.prior_cov: np.ndarray = np.empty(self.n_params) if prior_cov is None else prior_cov
         self.prior_std: np.ndarray = np.empty(self.n_params) if prior_cov is None else np.sqrt(np.diag(prior_cov))
-        self.prior_type = 'normal'
+        self.prior_type = prior_type
 
         # define maximal number of observations
         self.n_obs = 180 if n_obs is None else n_obs
