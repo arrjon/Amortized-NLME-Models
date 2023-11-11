@@ -138,7 +138,7 @@ class ObjectiveFunctionNLME:
             self.constant_prior_term = np.sum(np.log(np.diff(prior_bounds, axis=1)))
             # gaussian population density constant now does not cancel out
             # add constant to make approximations more comparable
-            self.constant_prior_term += np.log((2 * np.pi) ** (-prior_mean.size / 2))
+            self.constant_prior_term += -prior_mean.size * 0.5 * np.log(2 * np.pi)
         else:
             raise ValueError(f'prior_type must be either "gaussian" or "uniform", but is {prior_type}')
 

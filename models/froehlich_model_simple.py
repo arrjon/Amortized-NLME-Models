@@ -146,38 +146,45 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         print(f'Using the model {name}')
 
     def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> str:
+        self.n_epochs = 500
+        self.summary_dim = self.n_params * 2
 
         # load best
         if load_best:
             model_idx = -1
 
+        summary_network_type = ['sequence']
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [6, 7]
         n_dense_layers_in_coupling = [2, 3]
-        coupling_design = ['spline', 'affine']
+        coupling_design = ['affine', 'spline']
 
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
-                                              n_dense_layers_in_coupling, coupling_design))
+                                              n_dense_layers_in_coupling, coupling_design, summary_network_type))
+        # also test on configuration with a transformer as summary network
+        combinations.append((False, 6, 2, 'affine', 'transformer'))
 
         if model_idx >= len(combinations) or model_idx < 0:
             model_name = f'amortizer-small-fro' \
+                         f'-{self.summary_network_type}-summary' \
+                         f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                          f'-{self.n_coupling_layers}layers' \
                          f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
-                         f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                          f'-{self.n_epochs}epochs' \
                          f'-{datetime.now().strftime("%Y-%m-%d_%H-%M")}'
             return model_name
 
-        self.n_epochs = 500
         (self.bidirectional_LSTM,
          self.n_coupling_layers,
          self.n_dense_layers_in_coupling,
-         self.coupling_design) = combinations[model_idx]
+         self.coupling_design,
+         self.summary_network_type) = combinations[model_idx]
 
         model_name = f'amortizer-small-fro' \
+                     f'-{self.summary_network_type}-summary' \
+                     f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                      f'-{self.n_coupling_layers}layers' \
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
-                     f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                      f'-{self.n_epochs}epochs'
         return model_name
 

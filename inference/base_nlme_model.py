@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 
 import tensorflow as tf
 from bayesflow.simulation import Prior, Simulator
-from bayesflow.summary_networks import SequenceNetwork, SplitNetwork
+from bayesflow.summary_networks import SequenceNetwork, SplitNetwork, TimeSeriesTransformer
 from bayesflow.networks import InvertibleNetwork
 from bayesflow.amortizers import AmortizedPosterior
 from bayesflow.trainers import Trainer
@@ -80,7 +80,7 @@ class NlmeBaseAmortizer(ABC):
         self.bidirectional_LSTM = False  # default
         self.summary_dim = 10  # default
         self.num_conv_layers = 2  # default
-        self.split_summary = False  # default, only relevant if inputs can be split
+        self.summary_network_type = ['sequence', 'split-sequence', 'transformer'][0]
         self.n_obs_per_measure = 1  # number of observations per measurement, only important if inputs can be split
 
         # amortizer and prior
@@ -125,6 +125,8 @@ class NlmeBaseAmortizer(ABC):
         trainer = Trainer(amortizer=self.amortizer,
                           generative_model=generative_model,
                           configurator=self.configured_input,
+                          # When using transformers as summary networks, you should use a smaller learning rate
+                          default_lr=0.0005 if self.summary_network_type != 'transformer' else 1e-5,
                           checkpoint_path=path_store_network,
                           max_to_keep=max_to_keep)
 
@@ -141,7 +143,7 @@ class NlmeBaseAmortizer(ABC):
         # 2^k hidden units s.t. 2^k > #datapoints = 8
         power_k_hidden_units = int(np.ceil(np.log2(self.n_obs)))
 
-        if self.split_summary:
+        if self.summary_network_type == 'split-sequence':
             network_kwargs = {'summary_dim': self.summary_dim,
                               'num_conv_layers': self.num_conv_layers,
                               'lstm_units': 2 ** power_k_hidden_units,
@@ -151,30 +153,46 @@ class NlmeBaseAmortizer(ABC):
                   f'a {"bidirectional" if self.bidirectional_LSTM else ""} LSTM with {2 ** power_k_hidden_units} '
                   f'units and a dense layer with output dimension {self.summary_dim} as summary network')
 
-            summary_net = SplitNetwork(num_splits=2,
-                                       split_data_configurator=split_data if self.n_obs_per_measure == 1 else split_data_2d,
-                                       network_type=SequenceNetwork,
-                                       network_kwargs=network_kwargs)
-        else:
-            summary_net = SequenceNetwork(summary_dim=self.summary_dim,
-                                          num_conv_layers=self.num_conv_layers,
-                                          lstm_units=2 ** power_k_hidden_units,
-                                          bidirectional=self.bidirectional_LSTM)
+            summary_net = SplitNetwork(
+                num_splits=2,
+                split_data_configurator=split_data if self.n_obs_per_measure < 3 else split_data_2d,
+                network_type=SequenceNetwork,
+                network_kwargs=network_kwargs)
+
+        elif self.summary_network_type == 'transformer':
+            summary_net = TimeSeriesTransformer(
+                input_dim=self.n_obs_per_measure,
+                summary_dim=self.summary_dim,
+                bidirectional=self.bidirectional_LSTM
+            )
+            print(f'using a TimeSeriesTransformer with a {"bidirectional" if self.bidirectional_LSTM else ""} LSTM '
+                  f'template and output dimension {self.summary_dim} as summary network')
+
+        elif self.summary_network_type == 'sequence':
+            summary_net = SequenceNetwork(
+                summary_dim=self.summary_dim,
+                num_conv_layers=self.num_conv_layers,
+                lstm_units=2 ** power_k_hidden_units,
+                bidirectional=self.bidirectional_LSTM)
             print(
                 f'using {self.num_conv_layers} layers of MultiConv1D, '
                 f'a {"bidirectional" if self.bidirectional_LSTM else ""} LSTM with {2 ** power_k_hidden_units} '
                 f'units and a dense layer with output dimension {self.summary_dim} as summary network')
+        else:
+            raise ValueError(f'Unknown summary network type {self.summary_network_type}')
 
         # inference network
-        coupling_settings = {
+        coupling_settings = {  # dict overwrites default settings from BayesFlow
             "num_dense": self.n_dense_layers_in_coupling,
-            "coupling_design": self.coupling_design,
+            'dense_args': dict(activation='elu')  # standard is ReLU which might be faster
         }
 
         inference_net = InvertibleNetwork(num_params=self.n_params,
                                           num_coupling_layers=self.n_coupling_layers,
+                                          coupling_design=self.coupling_design,
                                           coupling_settings=coupling_settings)
-        print(f'using a {self.n_coupling_layers}-layer cINN as inference network')
+        print(f'using a {self.n_coupling_layers}-layer cINN as inference network '
+              f'with {self.n_dense_layers_in_coupling} layers of design {self.coupling_design}')
         self.amortizer = AmortizedPosterior(inference_net, summary_net)
         return
 
