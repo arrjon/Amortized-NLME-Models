@@ -37,7 +37,6 @@ def run_population_optimization(
     # set up pyPesto
     param_names_opt = create_param_names_opt(bf_amortizer=individual_model.amortizer,
                                              param_names=param_names,
-                                             n_covariates=objective_function.n_covariates,
                                              multi_experiment=multi_experiment)
     # create bounds if none are given
     if param_bounds is None:
@@ -47,7 +46,6 @@ def run_population_optimization(
             prior_std=individual_model.prior_std,
             prior_type=individual_model.prior_type,
             prior_bounds=individual_model.prior_bounds if hasattr(individual_model, 'prior_bounds') else None,
-            boundary_width_from_prior=3,
             covariates_bounds=covariates_bounds,  # only used if covariates are used
             covariance_format=objective_function.covariance_format)
     if x_fixed_indices is not None and x_fixed_vals is not None:

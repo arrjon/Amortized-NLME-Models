@@ -19,7 +19,7 @@ def create_boundaries_from_prior(
         prior_type: str,
         prior_bounds: Optional[np.ndarray] = None,
         covariates_bounds: Optional[np.ndarray] = None,
-        boundary_width_from_prior: float = 2.58,
+        boundary_width_from_prior: float = 3,
         covariance_format: str = 'diag') -> np.ndarray:
     """Create boundaries for optimization problem from prior mean and standard deviation."""
     if prior_type == 'uniform':
@@ -27,7 +27,7 @@ def create_boundaries_from_prior(
         lb_means = prior_bounds[:, 0]
         ub_means = prior_bounds[:, 1]
     else:
-        # gaussian prior
+        # gaussian prior # TODO: how should bound change with covariates?
         lb_means = prior_mean - boundary_width_from_prior * prior_std
         ub_means = prior_mean + boundary_width_from_prior * prior_std
 
@@ -58,44 +58,44 @@ def create_boundaries_from_prior(
 
 def create_param_names_opt(bf_amortizer: AmortizedPosterior,
                            param_names: list,
-                           n_covariates: int = 0,
                            multi_experiment: bool = False,
                            ):
     if not multi_experiment:
         dim = bf_amortizer.latent_dim
     else:
         dim = bf_amortizer.latent_dim + 1
-    dim += n_covariates
 
     # create parameter names for optimization problem
     param_names_opt = []
     for i, name in enumerate(param_names):
-        if i >= dim:
-            continue  # only change population params
-        param_names_opt.append(name)
-
-    for i, name in enumerate(param_names):
-        if i < dim or i >= 2 * dim:
-            continue  # only change variance params
-        param_names_opt.append('$\log$ (' + name + ')^{-1}')
-
-    for i, name in enumerate(param_names):
-        if i < 2 * dim:
-            continue  # only change correlation params
-        param_names_opt.append(name)
+        if i < dim:
+            param_names_opt.append(name)
+        elif i < 2 * dim:
+            # only change variance params
+            param_names_opt.append('$\log$ (' + name + ')^{-1}')
+        elif i < 2 * dim + dim * (dim - 1) // 2:
+            # only change correlation params
+            param_names_opt.append('inv_' + name)
+        else:
+            param_names_opt.append(name)
     return param_names_opt
 
 
-def create_mixed_effect_model_param_names(param_names: list, cov_type: str) -> list:
+def create_mixed_effect_model_param_names(param_names: list,
+                                          cov_type: str,
+                                          covariates_names: Optional[list] = None
+                                          ) -> list:
     """create parameter names for mixed effect model (mean, variance, correlation)"""
     pop_param_names = ['pop-' + name for name in param_names]
     var_param_names = ['var-' + name for name in param_names]
-    full_param_names = pop_param_names + var_param_names
+    mixed_effect_params_names = pop_param_names + var_param_names
 
-    if cov_type == 'cholesky' and len(full_param_names) == len(param_names) * 2:
+    if cov_type == 'cholesky' and len(mixed_effect_params_names) == len(param_names) * 2:
         # add parameter names in exact the same order as in the covariance matrix
-        full_param_names += create_correlation_names(param_names)
-    return full_param_names
+        mixed_effect_params_names += create_correlation_names(param_names)
+    if covariates_names is not None:
+        mixed_effect_params_names += covariates_names
+    return mixed_effect_params_names
 
 
 def create_correlation_names(param_names: list) -> list:

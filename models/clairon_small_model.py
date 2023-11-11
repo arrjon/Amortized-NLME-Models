@@ -317,7 +317,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             patients_data.append(data)
             patients_covariates.append(covariates)
 
-            if n_data is not None and p_id == n_data - 1:
+            if n_data is not None and len(patients_data) == n_data:
                 break
 
         if load_covariates:
