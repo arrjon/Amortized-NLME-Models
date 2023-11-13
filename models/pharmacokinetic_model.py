@@ -202,7 +202,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         print('Using the PharmacokineticModel')
 
     def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> str:
-        self.n_obs_per_measure = 3  # time and two measurements
+        self.n_obs_per_measure = 4  # time and two measurements + event type (measurement = 0, dosing = 1)
         self.n_epochs = 750
         self.summary_dim = self.n_params * 2
 

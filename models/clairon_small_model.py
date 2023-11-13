@@ -176,7 +176,9 @@ def convert_bf_to_observables(output: np.ndarray,
 
 
 class ClaironSmallModel(NlmeBaseAmortizer):
-    def __init__(self, name: str = 'ClaironModel', network_idx: int = -1, load_best: bool = False):
+    def __init__(self, name: str = 'ClaironModel', network_idx: int = -1, load_best: bool = False,
+                 prior_type: str = 'normal'  # normal or uniform
+                 ):
         # define names of parameters
         param_names = ['fM2', 'fM3', 'theta', 'deltaV', 'deltaS',
                        'error_prop']
@@ -188,7 +190,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         # define prior bounds for uniform prior
         # self.prior_bounds = np.array([[-10, 5], [-5, 10], [-5, 10], [-20, 0], [-10, 0], [-10, 0], [-10, 0]])
         self.prior_bounds = np.array([[-5, 7], [-5, 7], [-5, 7], [-5, 7], [-5, 0], [-5, 0]])
-        self.prior_type = ['normal', 'uniform'][0]
+        self.prior_type = prior_type
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -235,7 +237,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
     def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> str:
         self.n_epochs = 500
         self.summary_dim = self.n_params * 2
-        self.n_obs_per_measure = 2  # time and measurement
+        self.n_obs_per_measure = 3  # time and measurement + event type (measurement = 0, dosing = 1)
 
         # load best
         if load_best:
@@ -254,7 +256,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         combinations.append((False, 7, 2, 'affine', 'transformer'))
 
         if model_idx >= len(combinations) or model_idx < 0:
-            model_name = f'amortizer-clairon' \
+            model_name = f'amortizer-clairon-{self.prior_type}' \
                          f'-{self.summary_network_type}-summary' \
                          f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                          f'-{self.n_coupling_layers}layers' \
@@ -269,7 +271,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
          self.coupling_design,
          self.summary_network_type) = combinations[model_idx]
 
-        model_name = f'amortizer-clairon' \
+        model_name = f'amortizer-clairon-{self.prior_type}' \
                      f'-{self.summary_network_type}-summary' \
                      f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                      f'-{self.n_coupling_layers}layers' \

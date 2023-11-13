@@ -155,7 +155,7 @@ class NlmeBaseAmortizer(ABC):
 
             summary_net = SplitNetwork(
                 num_splits=2,
-                split_data_configurator=split_data if self.n_obs_per_measure < 3 else split_data_2d,
+                split_data_configurator=split_data if self.n_obs_per_measure < 4 else split_data_2d,
                 network_type=SequenceNetwork,
                 network_kwargs=network_kwargs)
 
