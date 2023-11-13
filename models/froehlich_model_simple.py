@@ -131,8 +131,8 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         param_names = ['$\delta$', '$\gamma$', '$k m_0$-scale', '$t_0$', 'offset', '$\sigma$']
 
         # define prior values (for log-parameters)
-        prior_mean = np.array([-3, -3, 5, 0, 0, -1])
-        prior_cov = np.diag([5, 5, 11, 2, 6, 2])
+        prior_mean = np.array([-3., -3., 5., 0., 0., -.1])
+        prior_cov = np.diag([5., 5., 11., 2., 6., 2.])
         self.prior_type = 'normal'
 
         super().__init__(name=name,
@@ -262,7 +262,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         # plot observed data
         ax.scatter(t_measurement, data, color='b', label='measurements')
         ax.set_xlabel('$t\, [h]$')
-        ax.set_ylabel('fluorescence intensity [a.u.]')
+        ax.set_ylabel('log fluorescence intensity [a.u.]')
         return ax
 
 

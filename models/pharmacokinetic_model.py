@@ -99,20 +99,20 @@ def batch_simulator(param_batch: np.ndarray,
                                   jl_t_measurement).to_numpy().T
 
         # convert to measurements
-        y_sim = measurement_model(a_sim)
+        y_sim_log = measurement_model(a_sim)
         if with_noise:
-            y_sim = add_noise(y_sim, theta_12=theta_12, theta_13=theta_13)
+            y_sim_log = add_noise(y_sim_log, theta_12=theta_12, theta_13=theta_13)
 
         # reshape the data to fit in one numpy array
         if convert_to_bf_batch:
-            output_batch[pars_i, :, :] = convert_to_bf_format(y=y_sim,
+            output_batch[pars_i, :, :] = convert_to_bf_format(y=y_sim_log,
                                                               t_measurements=t_measurement,
                                                               doses_time_points=t_doses,
                                                               dos=dos,
                                                               wt=wt)
         else:
-            # and remove log-transformation
-            output_batch[pars_i, :] = np.exp(y_sim)
+            # still on log scale, since error model is additive on log scale
+            output_batch[pars_i, :] = y_sim_log
 
     if n_sim == 1:
         # remove batch dimension
@@ -159,7 +159,7 @@ def convert_bf_to_observables(output: np.ndarray,
 
     """
     measurements = output[np.where(output[:, 3] == 0)]
-    y = np.exp(measurements[:, :2])
+    y = measurements[:, :2]  # np.exp(measurements[:, :2])
     t_measurements = measurements[:, 2] * scaling_time
 
     doses = output[np.where(output[:, 3] == 1)]
@@ -187,8 +187,8 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                        ]
 
         # define prior values (for log-parameters)
-        prior_mean = np.array([-5, 6.5, 2.5, 2.5, 6.5, 0, 6.5, -3, -1, -1, 0])
-        prior_cov = np.diag(np.array([4.5, 1, 1, 1, 1, 1, 1, 4.5, 2, 2, 1]))
+        prior_mean = np.array([-5., 6.5, 2.5, 2.5, 6.5, 0., 6.5, -3., -1., -1., 0.])
+        prior_cov = np.diag(np.array([4.5, 1., 1., 1., 1., 1., 1., 4.5, 2., 2., 1.]))
         self.prior_type = 'normal'
 
         super().__init__(name=name,
@@ -419,8 +419,8 @@ def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv',
     # convert data to a BayesFlow format
     data_bayesflow = []
     for d in data:
-        p_id, y, measurements, doses_time_points, dos, wt = d
-        observables = convert_to_bf_format(y=y,
+        p_id, y_log, measurements, doses_time_points, dos, wt = d
+        observables = convert_to_bf_format(y=y_log,
                                            t_measurements=measurements,
                                            doses_time_points=doses_time_points,
                                            dos=dos,

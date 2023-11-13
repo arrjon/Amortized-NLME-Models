@@ -80,8 +80,8 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
                        '$k_1 m_0$', '$r_0 m_0$', '$\gamma$', '$t_0$', 'offset', '$\sigma$']
 
         # define prior values (for log-parameters)
-        prior_mean = np.array([-1, -1, -1, 12, -1, 1, -1, -6, 0, 0, -1])
-        prior_diag = np.array([5, 5, 2, 2, 2, 2, 2, 5, 2, 5, 2])
+        prior_mean = np.array([-1., -1., -1., 12., -1., 1., -1., -6., 0., 0., -1.])
+        prior_diag = np.array([5., 5., 2., 2., 2., 2., 2., 5., 2., 5., 2.])
         prior_diag[3] = 1  # otherwise too many samples lead to overflow
         prior_cov = np.diag(prior_diag)
         self.prior_type = 'normal'
@@ -213,5 +213,5 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         # plot observed data
         ax.scatter(t_measurement, data, color='b', label='measurements')
         ax.set_xlabel('$t\, [h]$')
-        ax.set_ylabel('fluorescence intensity [a.u.]')
+        ax.set_ylabel('log fluorescence intensity [a.u.]')
         return ax

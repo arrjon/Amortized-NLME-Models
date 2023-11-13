@@ -238,6 +238,9 @@ class NlmeBaseAmortizer(ABC):
 
         """
         if isinstance(data, np.ndarray):
+            if len(data.shape) == 2:
+                # just data from one individual
+                data = data[np.newaxis, :]
             posterior_draws = self.amortizer.sample({'summary_conditions': data}, n_samples=n_samples)
         else:
             # data is a list (different lengths, e.g. number of observations)

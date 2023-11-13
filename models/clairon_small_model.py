@@ -41,23 +41,22 @@ def measurement_model(y: np.ndarray, censoring: float = 2500., threshold: float 
     """
     y[y < threshold] = threshold
     y[y > censoring] = censoring
-    y = np.log(y)
     return y
 
 
-def prop_noise(y: np.ndarray, error_param: float) -> np.ndarray:
+def prop_noise(y: np.ndarray, error_params: np.ndarray) -> np.ndarray:
     """
     Proportional error model for given trajectories.
 
     Parameters:
     y (np.ndarray): The trajectory to which noise should be added.
-    error_param (float): Standard deviation of the Gaussian noise.
+    error_params (np.ndarray): Standard deviations of the Gaussian noise: (a+by)*noise where noise is standard normal.
 
     Returns:
     np.ndarray: The noisy trajectories.
     """
     noise = np.random.normal(loc=0, scale=1, size=y.shape)
-    return y * (1 + error_param * noise)
+    return y + (error_params[0] + error_params[1]*y) * noise
 
 
 def batch_simulator(param_batch: np.ndarray,
@@ -103,7 +102,7 @@ def batch_simulator(param_batch: np.ndarray,
 
     for pars_i, log_params in enumerate(param_batch):
         # convert to julia types
-        jl_parameter = jlconvert(jl.Vector[jl.Float64], np.exp(log_params[:-1]))
+        jl_parameter = jlconvert(jl.Vector[jl.Float64], np.exp(log_params[:-2]))
 
         # simulate
         y_sim = jl.simulateSmallClairon(jl_parameter, jl_x0,
@@ -112,7 +111,7 @@ def batch_simulator(param_batch: np.ndarray,
 
         # apply noise
         if with_noise:
-            y_sim = prop_noise(y_sim, error_param=np.exp(log_params[-1:]))
+            y_sim = prop_noise(y_sim, error_params=np.exp(log_params[-2:]))
 
         # applying censoring and log-transformation
         y_sim = measurement_model(y_sim)
@@ -124,8 +123,7 @@ def batch_simulator(param_batch: np.ndarray,
                                                               dose_amount=dose_amount,
                                                               doses_time_points=t_doses)
         else:
-            # and remove log-transformation
-            output_batch[pars_i, :] = np.exp(y_sim)
+            output_batch[pars_i, :] = y_sim
 
     if n_sim == 1:
         # remove batch dimension
@@ -141,11 +139,11 @@ def convert_to_bf_format(y: np.ndarray,
                          ) -> np.ndarray:
     """
     converts all data to the format used by the bayesflow summary model
-        (y, timepoints / scaling_time, 0) concatenated with (log(dose_amount), timepoints / scaling_time, 1)
+        (np.log(y), timepoints / scaling_time, 0) concatenated with (log(dose_amount), timepoints / scaling_time, 1)
     and then sort by time
     """
     # reshape the data to fit in one numpy array
-    measurements = np.stack((y,
+    measurements = np.stack((np.log(y),
                              t_measurements / scaling_time,
                              np.zeros(t_measurements.size)),
                             axis=1)
@@ -181,15 +179,15 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                  ):
         # define names of parameters
         param_names = ['fM2', 'fM3', 'theta', 'deltaV', 'deltaS',
-                       'error_prop']
+                       'error_constant', 'error_prop']
 
         # define prior values (for log-parameters)
-        prior_mean = np.log([4, 12, 18, 3, 0.01, 0.1])
-        prior_cov = np.diag(np.array([3, 3, 3, 3, 3, 1.5]) * 2)
+        prior_mean = np.log([4, 12, 18, 3, 0.01, 0.1, 0.1])
+        prior_cov = np.diag(np.array([3, 3, 3, 3, 3, 3, 3]) * 2)
 
         # define prior bounds for uniform prior
         # self.prior_bounds = np.array([[-10, 5], [-5, 10], [-5, 10], [-20, 0], [-10, 0], [-10, 0], [-10, 0]])
-        self.prior_bounds = np.array([[-5, 7], [-5, 7], [-5, 7], [-5, 7], [-5, 0], [-5, 0]])
+        self.prior_bounds = np.array([[-5, 7], [-5, 7], [-5, 7], [-5, 7], [-5, 0], [-5, 0], [-5, 0]])
         self.prior_type = prior_type
 
         super().__init__(name=name,
