@@ -54,7 +54,8 @@ class NlmeBaseAmortizer(ABC):
                  prior_mean: Optional[np.ndarray] = None,
                  prior_cov: Optional[np.ndarray] = None,
                  prior_type: str = 'normal',
-                 n_obs: Optional[int] = None, ):
+                 max_n_obs: Optional[int] = None,
+                 changeable_obs_n: bool = False):
 
         self.name = name
         # define names of parameters
@@ -69,7 +70,9 @@ class NlmeBaseAmortizer(ABC):
         self.prior_type = prior_type
 
         # define maximal number of observations
-        self.n_obs = 180 if n_obs is None else n_obs
+        self.max_n_obs = 180 if max_n_obs is None else max_n_obs
+        self.changeable_obs_n = changeable_obs_n   # if True, the number of observations may change per simulation
+        self.n_obs_per_measure = 1  # number of observations per measurement, only important if inputs can be split
 
         # training parameters
         self.n_epochs = 500
@@ -81,13 +84,14 @@ class NlmeBaseAmortizer(ABC):
         self.summary_dim = 10  # default
         self.num_conv_layers = 2  # default
         self.summary_network_type = ['sequence', 'split-sequence', 'transformer'][0]
-        self.n_obs_per_measure = 1  # number of observations per measurement, only important if inputs can be split
 
         # amortizer and prior
         # must be before calling the generative model so prior etc. are up-to-date
         self.network_name = self.load_amortizer_configuration(model_idx=network_idx, load_best=load_best)
         self._build_amortizer()
         self._build_prior()
+
+        self.simulator = None  # to be defined in child class
         """
         # to create trainer call
         self.build_trainer()
@@ -105,21 +109,12 @@ class NlmeBaseAmortizer(ABC):
             model_name = None
         return model_name
 
-    def build_simulator(self, with_noise: bool = True) -> Simulator:
-        """
-        should be something like
-        self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
-                                                          with_noise=with_noise))
-
-        """
-        raise NotImplementedError('Simulator not implemented yet.')
-
     def build_trainer(self, path_store_network: str, max_to_keep: int = 3) -> Trainer:
-        simulator = self.build_simulator(with_noise=True)
+        if self.simulator is None:
+            raise ValueError('Simulator not defined yet.')
         generative_model = GenerativeModel(prior=self.prior,
-                                           simulator=simulator,
-                                           simulator_is_batched=True,
-                                           prior_is_batched=True)
+                                           simulator=self.simulator,
+                                           name=self.name)
 
         # build the trainer with networks and generative model
         trainer = Trainer(amortizer=self.amortizer,
@@ -141,7 +136,7 @@ class NlmeBaseAmortizer(ABC):
         """
         # summary network
         # 2^k hidden units s.t. 2^k > #datapoints = 8
-        power_k_hidden_units = int(np.ceil(np.log2(self.n_obs)))
+        power_k_hidden_units = int(np.ceil(np.log2(self.max_n_obs)))
 
         if self.summary_network_type == 'split-sequence':
             network_kwargs = {'summary_dim': self.summary_dim,
@@ -225,7 +220,7 @@ class NlmeBaseAmortizer(ABC):
         """
         return self.prior_mean + samples * self.prior_std
 
-    def draw_posterior_samples(self, data: Union[list, np.ndarray], n_samples: int = 100) -> np.ndarray:
+    def draw_posterior_samples(self, data: Union[list, np.ndarray], n_samples: int) -> np.ndarray:
         """
         Function to draw samples from the posterior distribution.
         Takes care of different data formats and normalization.
@@ -238,7 +233,7 @@ class NlmeBaseAmortizer(ABC):
 
         """
         if isinstance(data, np.ndarray):
-            if len(data.shape) == 2:
+            if data.ndim == 2:
                 # just data from one individual
                 data = data[np.newaxis, :]
             posterior_draws = self.amortizer.sample({'summary_conditions': data}, n_samples=n_samples)
@@ -247,26 +242,38 @@ class NlmeBaseAmortizer(ABC):
             input_list = []
             for d in data:
                 # make bayesflow dict
-                input_list.append({'summary_conditions': d[np.newaxis,:]})
+                input_list.append({'summary_conditions': d[np.newaxis, :]})
             posterior_draws = self.amortizer.sample_loop(input_list, n_samples=n_samples)
             posterior_draws = posterior_draws.reshape((len(data), n_samples, self.n_params))
         return self._reconfigure_samples(posterior_draws)
 
     def generate_simulations_from_prior(self,
                                         n_samples: int,
-                                        trainer: Trainer,
-                                        simulator: Simulator) -> dict:
+                                        trainer: Trainer) -> dict:
         """
         Function to generate samples from the prior distribution.
         Takes care of different data formats and normalization.
+        If changeable_obs_n is True, the number of observations might change per simulation.
         """
-        generative_model = GenerativeModel(prior=self.prior,
-                                           simulator=simulator,
-                                           simulator_is_batched=True,
-                                           prior_is_batched=True)
+        if self.simulator is None:
+            raise ValueError('Simulator not defined yet.')
 
-        new_sims = trainer.configurator(generative_model(n_samples))
-        new_sims['parameters'] = self._reconfigure_samples(new_sims['parameters'])
+        generative_model = GenerativeModel(prior=self.prior,
+                                           simulator=self.simulator,
+                                           skip_test=True)
+
+        if self.changeable_obs_n:
+            # sample separately for each data point since points may have different number of observations
+            new_sims = {'summary_conditions': [], 'parameters': []}
+            for i_sample in range(n_samples):
+                single_new_sims = trainer.configurator(generative_model(1))
+                single_new_sims['parameters'] = self._reconfigure_samples(single_new_sims['parameters'])
+                new_sims['summary_conditions'].append(single_new_sims['summary_conditions'].squeeze(axis=0))
+                new_sims['parameters'].append(single_new_sims['parameters'].squeeze(axis=0))
+            new_sims['parameters'] = np.array(new_sims['parameters'])
+        else:
+            new_sims = trainer.configurator(generative_model(n_samples))
+            new_sims['parameters'] = self._reconfigure_samples(new_sims['parameters'])
         return new_sims
 
 
@@ -302,8 +309,8 @@ def batch_uniform_prior(prior_bounds: np.ndarray,
 
 
 def configure_input(forward_dict: dict,
-                    prior_means: np.ndarray = None,
-                    prior_stds: np.ndarray = None,
+                    prior_means: Optional[np.ndarray] = None,
+                    prior_stds: Optional[np.ndarray] = None,
                     show_more: bool = False) -> dict:
     """
         Function to configure the simulated quantities (i.e., simulator outputs)
@@ -315,6 +322,16 @@ def configure_input(forward_dict: dict,
 
     # Convert data to float32
     data = forward_dict['sim_data'].astype(np.float32)
+
+    # simulate batch
+    if data.ndim != 3:  # so not (batch_size, n_obs, n_measurements)
+        # just a single parameter set
+        if data.ndim == 1:
+            data = data[np.newaxis, :, np.newaxis]
+        elif data.ndim == 2:
+            data = data[np.newaxis, :, :]
+        else:
+            raise ValueError(f'Invalid data dimension {data.ndim}')
 
     # Extract prior draws
     params = forward_dict['prior_draws'].astype(np.float32)

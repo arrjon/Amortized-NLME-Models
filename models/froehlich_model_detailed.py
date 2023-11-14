@@ -41,7 +41,7 @@ def batch_simulator(param_batch: np.ndarray,
     Return: sim_data: np.ndarray - simulated data (#simulations, #observations, 1)
     """
     # simulate batch
-    if len(param_batch.shape) == 1:  # so not (batch_size, params)
+    if param_batch.ndim == 1:  # so not (batch_size, params)
         # just a single parameter set
         param_batch = param_batch[np.newaxis, :]
     n_sim = param_batch.shape[0]
@@ -92,7 +92,10 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         n_obs=180)
+                         max_n_obs=180)
+
+        self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
+                                                               n_obs=180))
 
         print(f'Using the model {name}')
 
@@ -139,23 +142,13 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
                      f'-{self.n_epochs}epochs'
         return model_name
 
-    def build_simulator(self,
-                        with_noise: bool = True,
-                        exp_func: str = 'exp') -> Simulator:
-        # build simulator
-        simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
-                                                          n_obs=self.n_obs,
-                                                          with_noise=with_noise,
-                                                          exp_func=exp_func))
-        return simulator
-
     @staticmethod
     def load_data(n_data: Optional[int] = None,
                   load_egfp: bool = True, load_d2egfp: bool = False,
                   synthetic: bool = False) -> np.ndarray:
         if synthetic:
             # load synthetic data which is saved in csv
-            obs_data = load_single_cell_data('data_random_cells_large_model', real_data=False)
+            obs_data = load_single_cell_data('data_random_cells_detailed_model', real_data=False)
             if n_data is not None:
                 obs_data = obs_data[:n_data]
         else:
@@ -169,7 +162,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
     @staticmethod
     def load_synthetic_parameter(n_data: int) -> np.ndarray:
-        true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters_large_model.csv',
+        true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters_detailed_model.csv',
                                           index_col=0, header=0).loc[f'{n_data}'].values
         return true_pop_parameters
 

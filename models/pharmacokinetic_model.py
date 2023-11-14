@@ -18,8 +18,6 @@ import itertools
 
 from inference.base_nlme_model import NlmeBaseAmortizer
 from bayesflow.simulation import Simulator
-from bayesflow.trainers import Trainer
-from bayesflow.simulation import GenerativeModel
 
 from juliacall import Main as jl
 from juliacall import Pkg as jlPkg
@@ -47,10 +45,10 @@ def add_noise(y: np.ndarray, theta_12: float, theta_13: float, sigma: float = 1)
 
 
 def batch_simulator(param_batch: np.ndarray,
-                    t_measurement: Optional[np.ndarray] = None,
-                    t_doses: Optional[np.ndarray] = None,
-                    wt: Optional[float] = None,
-                    dos: Optional[float] = None,
+                    t_measurement: Optional[np.ndarray] = None,  # one list for all samples
+                    t_doses: Optional[np.ndarray] = None,  # one list for all samples
+                    wt: Optional[float] = None,  # one float for all samples
+                    dos: Optional[float] = None,  # one float for all samples
                     with_noise: bool = True,
                     convert_to_bf_batch: bool = True) -> np.ndarray:
     """
@@ -63,12 +61,12 @@ def batch_simulator(param_batch: np.ndarray,
     if t_measurement is None:
         t_measurement = get_measurement_regime()
     if t_doses is None:
-        t_doses = get_dosing_regim()
+        t_doses = get_dosing_regim(last_measurement_time=float(t_measurement[-1]))
     if wt is None or dos is None:
         wt, dos = get_covariates()
 
     # simulate batch
-    if len(param_batch.shape) == 1:  # so not (batch_size, params)
+    if param_batch.ndim == 1:  # so not (batch_size, params)
         # just a single parameter set
         param_batch = param_batch[np.newaxis, :]
     n_sim = param_batch.shape[0]
@@ -159,7 +157,7 @@ def convert_bf_to_observables(output: np.ndarray,
 
     """
     measurements = output[np.where(output[:, 3] == 0)]
-    y = measurements[:, :2]  # np.exp(measurements[:, :2])
+    y = measurements[:, :2]
     t_measurements = measurements[:, 2] * scaling_time
 
     doses = output[np.where(output[:, 3] == 1)]
@@ -197,7 +195,9 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         n_obs=230)  # 26 measurement max, 179 dosages max
+                         max_n_obs=230,
+                         changeable_obs_n=True)  # 26 measurement max, 179 dosages max
+        self.simulator = Simulator(batch_simulator_fun=batch_simulator)
 
         print('Using the PharmacokineticModel')
 
@@ -245,35 +245,6 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
                      f'-{self.n_epochs}epochs'
         return model_name
-
-    def build_simulator(self, with_noise: bool = True) -> Simulator:
-        # build simulator
-        simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
-                                                          with_noise=with_noise))
-        return simulator
-
-    def generate_simulations_from_prior(self,
-                                        n_samples: int,
-                                        trainer: Trainer,
-                                        simulator: Simulator) -> dict:
-        """
-        Function to generate samples from the prior distribution.
-        Takes care of different data formats and normalization.
-        """
-        generative_model = GenerativeModel(prior=self.prior,
-                                           simulator=simulator,
-                                           simulator_is_batched=True,
-                                           prior_is_batched=True)
-
-        # sample separately for each data point since points may have different number of observations
-        new_sims = {'summary_conditions': [], 'parameters': []}
-        for i_sample in range(n_samples):
-            single_new_sims = trainer.configurator(generative_model(1))
-            single_new_sims['parameters'] = self._reconfigure_samples(single_new_sims['parameters'])
-            new_sims['summary_conditions'].append(single_new_sims['summary_conditions'].squeeze(axis=0))
-            new_sims['parameters'].append(single_new_sims['parameters'].squeeze(axis=0))
-        new_sims['parameters'] = np.array(new_sims['parameters'])
-        return new_sims
 
     def load_data(self,
                   n_data: Optional[int] = None,
@@ -626,12 +597,14 @@ def get_measurement_regime() -> np.ndarray:
                [26.0, 336.75, 673.5, 1008.67, 1177.5],
                [27.75, 336.25, 672.25, 1008.33, 1344.5, 1680.67, 2016.67]]
 
-    random_regim = np.random.choice(np.array(regimes, dtype=object))
-    return np.array(random_regim)
+    regim_index = np.random.choice(range(len(regimes)))
+    random_regim = np.array(regimes[regim_index])
+    return random_regim
 
 
-def get_dosing_regim():
-    """sample a random dosing regime from the list of regimes"""
+def get_dosing_regim(last_measurement_time: Optional[float] = None) -> np.ndarray:
+    """sample a random dosing regime from the list of regimes, if last_measurement_time is given, regimes are cut off
+    at this time"""
     regimes = [[26.0, 50.0, 74.0, 98.0, 122.0, 146.0, 170.0, 194.0, 218.0, 242.0, 266.0, 290.0, 314.0, 338.0, 362.0,
                 386.0, 410.0, 434.0, 458.0, 482.0, 506.0, 530.0, 554.0, 578.0, 602.0, 626.0, 650.0, 674.0],
                [26.0, 50.0, 74.0, 98.0, 122.0, 146.0, 170.0, 194.0],
@@ -918,11 +891,15 @@ def get_dosing_regim():
                 1344.67, 1368.0, 1392.0, 1416.0, 1440.0, 1464.0, 1488.0, 1512.0, 1536.0, 1560.0, 1584.0, 1608.0, 1632.0,
                 1656.0, 2016.83]]
 
-    random_regim = np.random.choice(np.array(regimes, dtype=object))
-    return np.array(random_regim)
+    regim_index = np.random.choice(range(len(regimes)))
+    random_regim = np.array(regimes[regim_index])
+    # cut dosing regime after the last measurement
+    if last_measurement_time is not None:
+        random_regim = random_regim[random_regim < last_measurement_time]
+    return random_regim
 
 
-def get_covariates():
+def get_covariates() -> (float, float):
     """get the covariates for the simulation"""
     wt = np.random.choice([83.4, 80.0, 79.3, 83.0, 80.0, 75.5, 90.0, 98.0, 83.0, 96.0, 105.0, 88.0, 106.0, 71.0,
                            83.0, 76.0, 65.0, 87.5, 83.0, 83.0, 86.0, 83.0, 83.0, 83.0, 77.0, 75.0, 66.0, 72.7, 87.3,

@@ -6,7 +6,7 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from numba import jit
+from numba import njit
 
 from typing import Optional
 from functools import partial
@@ -19,7 +19,7 @@ from models.froehlich_model_simple import load_single_cell_data, load_multi_expe
 from bayesflow.simulation import Simulator
 
 
-@jit(nopython=True)
+@njit
 def drift_term(x: np.ndarray, delta: float, gamma: float, k: float) -> np.ndarray:
     """
     Computes the drift term of the SDE.
@@ -38,7 +38,7 @@ def drift_term(x: np.ndarray, delta: float, gamma: float, k: float) -> np.ndarra
     return np.array([m, p])
 
 
-@jit(nopython=True)
+@njit
 def diffusion_term(x: np.ndarray, delta: float, gamma: float, k: float) -> np.ndarray:
     """
     Computes the diffusion term of the SDE.
@@ -57,7 +57,7 @@ def diffusion_term(x: np.ndarray, delta: float, gamma: float, k: float) -> np.nd
     return np.array([m, p])
 
 
-@jit(nopython=True)
+@njit
 def measurement(x: np.ndarray, scale: float, offset: float) -> np.ndarray:
     """
     Applies a measurement function to a given variable.
@@ -73,7 +73,7 @@ def measurement(x: np.ndarray, scale: float, offset: float) -> np.ndarray:
     return np.log(scale * x[:, 1] + offset)
 
 
-@jit(nopython=True)
+@njit
 def euler_maruyama(t0: float, m0: float, delta: float, gamma: float, k: float,
                    step_size: float = 0.01) -> np.ndarray:
     """
@@ -127,7 +127,7 @@ def batch_simulator(param_batch: np.ndarray, n_obs: int, with_noise: bool = True
     Return: sim_data: np.ndarray - simulated data (#simulations, #observations, 1) or (#observations, 1)
     """
     # simulate batch
-    if len(param_batch.shape) == 1:  # so not (batch_size, params)
+    if param_batch.ndim == 1:  # so not (batch_size, params)
         # just a single parameter set
         param_batch = param_batch[np.newaxis, :]
     n_sim = param_batch.shape[0]
@@ -169,7 +169,10 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         n_obs=180)
+                         max_n_obs=180)
+
+        self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
+                                                               n_obs=180))
 
         print(f'Using the model {name}')
 
@@ -203,8 +206,8 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
                          f'-{datetime.now().strftime("%Y-%m-%d_%H-%M")}'
             return model_name
 
-        (self.summary_only_lstm,
-         self.bidirectional_LSTM,
+        (self.bidirectional_LSTM,
+         self.n_coupling_layers,
          self.n_dense_layers_in_coupling,
          self.coupling_design,
          self.summary_network_type) = combinations[model_idx]
@@ -216,13 +219,6 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
                      f'-{self.n_epochs}epochs'
         return model_name
-
-    def build_simulator(self, with_noise: bool = True) -> Simulator:
-        # build simulator
-        simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
-                                                          n_obs=self.n_obs,
-                                                          with_noise=with_noise))
-        return simulator
 
     @staticmethod
     def load_data(n_data: Optional[int] = None,

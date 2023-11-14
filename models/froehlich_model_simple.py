@@ -33,11 +33,18 @@ def ode_analytical_sol(t: np.ndarray, delta: float, gamma: float, k_m0_scale: fl
         with the first row being the value of m at each time point, and the second row being the
         value of p at each time point.
     """
-    with np.errstate(divide='ignore', invalid='ignore', over='ignore'):
+    if delta == gamma:
+        # the analytical solution is different in this case
         m = np.exp(-delta * (t - t_0))
         m[t - t_0 < 0] = 0
-        p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
+        p = k_m0_scale * np.exp(-gamma * (t - t_0)) * (t - t_0)
         p[t - t_0 < 0] = 0
+        return np.row_stack((m, p))
+
+    m = np.exp(-delta * (t - t_0))
+    m[t - t_0 < 0] = 0
+    p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
+    p[t - t_0 < 0] = 0
     return np.row_stack((m, p))
 
 
@@ -141,7 +148,10 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         n_obs=180)
+                         max_n_obs=180)
+
+        self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
+                                                               n_obs=180))
 
         print(f'Using the model {name}')
 
@@ -165,7 +175,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         combinations.append((False, 6, 2, 'affine', 'transformer'))
 
         if model_idx >= len(combinations) or model_idx < 0:
-            model_name = f'amortizer-small-fro' \
+            model_name = f'amortizer-simple-fro' \
                          f'-{self.summary_network_type}-summary' \
                          f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                          f'-{self.n_coupling_layers}layers' \
@@ -180,23 +190,13 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
          self.coupling_design,
          self.summary_network_type) = combinations[model_idx]
 
-        model_name = f'amortizer-small-fro' \
+        model_name = f'amortizer-simple-fro' \
                      f'-{self.summary_network_type}-summary' \
                      f'-{"Bi-LSTM" if self.bidirectional_LSTM else "LSTM"}' \
                      f'-{self.n_coupling_layers}layers' \
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
                      f'-{self.n_epochs}epochs'
         return model_name
-
-    def build_simulator(self,
-                        with_noise: bool = True,
-                        exp_func: str = 'exp') -> Simulator:
-        # build simulator
-        simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
-                                                          n_obs=self.n_obs,
-                                                          with_noise=with_noise,
-                                                          exp_func=exp_func))
-        return simulator
 
     @staticmethod
     def load_data(n_data: Optional[int] = None,
@@ -211,7 +211,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
             obs_data = load_multi_experiment_data(load_egfp=load_egfp, load_d2egfp=load_d2egfp)
             if n_data is not None:
                 if load_egfp and load_d2egfp:
-                    obs_data = [data[:int(n_data/2)] for data in obs_data]
+                    obs_data = [data[:int(n_data / 2)] for data in obs_data]
                 else:
                     obs_data = obs_data[:n_data]
         return obs_data

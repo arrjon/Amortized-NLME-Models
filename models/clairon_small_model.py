@@ -88,7 +88,7 @@ def batch_simulator(param_batch: np.ndarray,
     jl_t_measurement = jlconvert(jl.Vector[jl.Float64], t_measurements)
 
     # simulate batch
-    if len(param_batch.shape) == 1:  # so not (batch_size, params)
+    if param_batch.ndim == 1:  # so not (batch_size, params)
         # just a single parameter set
         param_batch = param_batch[np.newaxis, :]
     n_sim = param_batch.shape[0]
@@ -196,7 +196,9 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         n_obs=7)  # 4 measurements, 3 doses
+                         max_n_obs=7)  # 4 measurements, 3 doses
+
+        self.simulator = Simulator(batch_simulator_fun=batch_simulator)
 
         print(f'Using the model {name}')
 
@@ -277,11 +279,6 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                      f'-{self.n_epochs}epochs'
         return model_name
 
-    def build_simulator(self, with_noise: bool = True) -> Simulator:
-        # build simulator
-        simulator = Simulator(batch_simulator_fun=partial(batch_simulator, with_noise=with_noise))
-        return simulator
-
     def load_data(self,
                   n_data: Optional[int] = None,
                   load_covariates: bool = False,
@@ -338,7 +335,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             params = self.prior(1)['prior_draws'][0]
 
         output = batch_simulator(params)
-        ax = self.prepare_plotting(output, params)
+        _ = self.prepare_plotting(output, params)
 
         plt.title(f'Patient Simulation')
         plt.legend()
