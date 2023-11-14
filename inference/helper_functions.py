@@ -1,16 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+import itertools
+from typing import Optional, Union
 import numpy as np
 import pandas as pd
-
-from typing import Optional, Union
-import itertools
+from bayesflow.amortizers import AmortizedPosterior
 from heatmap import corrplot
 
 from inference.base_nlme_model import NlmeBaseAmortizer
-
-from bayesflow.amortizers import AmortizedPosterior
 
 
 def create_boundaries_from_prior(

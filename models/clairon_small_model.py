@@ -3,27 +3,26 @@
 
 # # Amortized Inference for the Clairon NLME Model
 
-# load necessary packages
+import itertools
+import os
+import pathlib
+from datetime import datetime
+from functools import partial
+from typing import Optional, Union
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# for plots
-import matplotlib.pyplot as plt
-
-# minor stuff
-from functools import partial
-from typing import Optional, Union
-from datetime import datetime
-import itertools
-
-from inference.base_nlme_model import NlmeBaseAmortizer, configure_input, batch_gaussian_prior, batch_uniform_prior
 from bayesflow.simulation import Simulator, Prior
 
 from juliacall import Main as jl
 from juliacall import Pkg as jlPkg
 from juliacall import convert as jlconvert
 
-jlPkg.activate("models/SimulatorSmallClairon")
+from inference.base_nlme_model import NlmeBaseAmortizer, configure_input, batch_gaussian_prior, batch_uniform_prior
+
+env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorSmallClairon')
+jlPkg.activate(env)
 jl.seval("using SimulatorSmallClairon")
 
 
@@ -294,11 +293,11 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             patients_data = batch_simulator(param_batch=params)
             return patients_data
 
-        df_dosages = pd.read_csv("data/clairon/bf_data_dosages.csv")
+        df_dosages = pd.read_csv("../data/clairon/bf_data_dosages.csv")
         df_dosages.drop_duplicates(inplace=True)
         df_dosages.set_index('id_hcw', inplace=True)  # only now, so duplicates are removed correctly
 
-        df_measurements = pd.read_csv("data/clairon/bf_data_measurements.csv", index_col=0)
+        df_measurements = pd.read_csv("../data/clairon/bf_data_measurements.csv", index_col=0)
         df_measurements['gender_code'] = df_measurements['gender'].astype('category').cat.codes
         df_measurements['age_standardized'] = np.log(df_measurements['age'])
 

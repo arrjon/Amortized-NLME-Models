@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import numpy as np
-from scipy.special import logsumexp
-from scipy.linalg import ldl as ldl_decomposition
-from numba import njit, prange
-
 from typing import Optional
+import numpy as np
+from numba import njit, prange
+from scipy.linalg import ldl as ldl_decomposition
+from scipy.special import logsumexp
 
 
 @njit()

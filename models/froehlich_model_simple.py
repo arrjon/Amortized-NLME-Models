@@ -218,7 +218,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
 
     @staticmethod
     def load_synthetic_parameter(n_data: int) -> np.ndarray:
-        true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters.csv',
+        true_pop_parameters = pd.read_csv(f'../data/synthetic/sample_pop_parameters.csv',
                                           index_col=0, header=0).loc[f'{n_data}'].values
         return true_pop_parameters
 
@@ -270,10 +270,10 @@ def load_single_cell_data(file_name: str,
                           real_data: bool) -> np.ndarray:
     if real_data:
         # real data
-        data = pd.read_excel(f'data/froehlich_eGFP/{file_name}.xlsx', index_col=0, header=None)
+        data = pd.read_excel(f'../data/froehlich_eGFP/{file_name}.xlsx', index_col=0, header=None)
     else:
         # synthetic data which is saved as csv
-        data = pd.read_csv(f'data/synthetic/{file_name}.csv', index_col=0, header=0)
+        data = pd.read_csv(f'../data/synthetic/{file_name}.csv', index_col=0, header=0)
 
     # convert to right format
     data.index = data.index / 60 / 60  # convert to hours

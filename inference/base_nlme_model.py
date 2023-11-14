@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import numpy as np
-import matplotlib.pyplot as plt
-from functools import partial
-
-from typing import Optional, Union
 from abc import ABC, abstractmethod
+from functools import partial
+from typing import Optional, Union
+import matplotlib.pyplot as plt
+import numpy as np
 
 import tensorflow as tf
-from bayesflow.simulation import Prior, Simulator
-from bayesflow.summary_networks import SequenceNetwork, SplitNetwork, TimeSeriesTransformer
-from bayesflow.networks import InvertibleNetwork
+
 from bayesflow.amortizers import AmortizedPosterior
-from bayesflow.trainers import Trainer
+from bayesflow.networks import InvertibleNetwork
 from bayesflow.simulation import GenerativeModel
+from bayesflow.simulation import Prior
+from bayesflow.summary_networks import SequenceNetwork, SplitNetwork, TimeSeriesTransformer
+from bayesflow.trainers import Trainer
 
 
 def split_data(i: int, x: tf.Tensor):

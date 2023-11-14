@@ -1,14 +1,13 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-import numpy as np
-import matplotlib.pyplot as plt
 from datetime import datetime
-
+import matplotlib.cm as cm
+import matplotlib.pyplot as plt
+import numpy as np
+from pypesto import visualize, Result
 from scipy.stats import lognorm, entropy
 from scipy.stats import t as t_dist
-from pypesto import visualize, Result
-import matplotlib.cm as cm
 
 
 def visualize_pesto_result(result: Result):

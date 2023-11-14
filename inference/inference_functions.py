@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from functools import partial
+from typing import Union, Optional
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
-from typing import Union, Optional
-from functools import partial
-
-# optimization
 from pypesto import Result, Objective, Problem, FD, HistoryOptions, optimize, engine
+from tqdm import tqdm
 
-from inference.nlme_objective import ObjectiveFunctionNLME
-from inference.helper_functions import create_param_names_opt, create_boundaries_from_prior
 from inference.base_nlme_model import NlmeBaseAmortizer
+from inference.helper_functions import create_param_names_opt, create_boundaries_from_prior
+from inference.nlme_objective import ObjectiveFunctionNLME
 
 
 def run_population_optimization(

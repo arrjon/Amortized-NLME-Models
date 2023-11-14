@@ -3,27 +3,26 @@
 
 # # Amortized Inference for the pharmacokinetic NLME Model
 
-# load necessary packages
+import itertools
+import os
+import pathlib
+from datetime import datetime
+from functools import partial
+from typing import Optional
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-# for plots
-import matplotlib.pyplot as plt
-
-# minor stuff
-from functools import partial
-from typing import Optional
-from datetime import datetime
-import itertools
-
-from inference.base_nlme_model import NlmeBaseAmortizer
 from bayesflow.simulation import Simulator
 
 from juliacall import Main as jl
 from juliacall import Pkg as jlPkg
 from juliacall import convert as jlconvert
 
-jlPkg.activate("models/SimulatorPharma")
+from inference.base_nlme_model import NlmeBaseAmortizer
+
+env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorPharma')
+jlPkg.activate(env)
 jl.seval("using SimulatorPharma")
 
 
@@ -400,7 +399,7 @@ def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv',
     return data_bayesflow
 
 
-results_nonmen = pd.read_csv(f'output/results_nonmem/sunitinib_final_init1.SDTABFboot_029.csv',
+results_nonmen = pd.read_csv(f'../output/results_nonmem/sunitinib_final_init1.SDTABFboot_029.csv',
                              index_col=0, header=1)
 nonmem_a2 = results_nonmen.loc[results_nonmen['CMT'] == 2, ['TIME', 'IPRED', 'IRES', 'IWRES']]
 nonmem_a3 = results_nonmen.loc[results_nonmen['CMT'] == 3, ['TIME', 'IPRED', 'IRES', 'IWRES']]
@@ -478,7 +477,7 @@ get_nonmem_patient_data = partial(get_nonmem_data_helper, nonmem_a2=nonmem_a2, n
 
 
 def nonmem_best_results(full_param_names):
-    raw_data = pd.read_csv(f'output/results_nonmem/retries_sunitinib_lognor.csv', delimiter=',',
+    raw_data = pd.read_csv(f'../output/results_nonmem/retries_sunitinib_lognor.csv', delimiter=',',
                            index_col=0, header=0)
     # remove uninformative columns and add missing columns
     raw_data = raw_data[

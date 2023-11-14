@@ -3,24 +3,26 @@
 
 # # Amortized Inference for the detailed Fröhlich NLME Model
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
+import itertools
+import os
+import pathlib
+from datetime import datetime
 from functools import partial
 from typing import Optional
-from datetime import datetime
-import itertools
-
-from inference.base_nlme_model import NlmeBaseAmortizer
-from models.froehlich_model_simple import load_single_cell_data, load_multi_experiment_data, add_noise
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
 
 from bayesflow.simulation import Simulator
 
 from juliacall import Main as jl
 from juliacall import Pkg as jlPkg
 
-jlPkg.activate("models/SimulatorFroehlich")
+from inference.base_nlme_model import NlmeBaseAmortizer
+from models.froehlich_model_simple import load_single_cell_data, load_multi_experiment_data, add_noise
+
+env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorFroehlich')
+jlPkg.activate(env)
 jl.seval("using SimulatorFroehlich")
 
 
@@ -162,7 +164,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
     @staticmethod
     def load_synthetic_parameter(n_data: int) -> np.ndarray:
-        true_pop_parameters = pd.read_csv(f'data/synthetic/sample_pop_parameters_detailed_model.csv',
+        true_pop_parameters = pd.read_csv(f'./data/synthetic/sample_pop_parameters_detailed_model.csv',
                                           index_col=0, header=0).loc[f'{n_data}'].values
         return true_pop_parameters
 
