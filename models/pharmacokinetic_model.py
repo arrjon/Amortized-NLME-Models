@@ -258,6 +258,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         return data
 
     def plot_example(self, params: Optional[np.ndarray] = None) -> None:
+        """Plots an individual trajectory of an individual in this model."""
         if params is None:
             params = self.prior(1)['prior_draws'][0]
 

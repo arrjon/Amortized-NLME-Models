@@ -51,17 +51,15 @@ class myModel(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([0, 0])
         prior_cov = np.diag([1, 1])
+        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov)
-                         
-    def build_simulator(self, other_args) -> Simulator:
-        # build simulator
-        simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
-                                                          other_args=other_args))
-        return simulator
+
+        self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
+                                                                  other_args=other_args))
 ```
 Next you can train the neural posterior estimator following the examples in
 Amortized NLME Training Diagnostics.ipynb. 

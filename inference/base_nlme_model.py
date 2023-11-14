@@ -71,7 +71,7 @@ class NlmeBaseAmortizer(ABC):
 
         # define maximal number of observations
         self.max_n_obs = 180 if max_n_obs is None else max_n_obs
-        self.changeable_obs_n = changeable_obs_n   # if True, the number of observations may change per simulation
+        self.changeable_obs_n = changeable_obs_n  # if True, the number of observations may change per simulation
         self.n_obs_per_measure = 1  # number of observations per measurement, only important if inputs can be split
 
         # training parameters
@@ -275,6 +275,16 @@ class NlmeBaseAmortizer(ABC):
             new_sims = trainer.configurator(generative_model(n_samples))
             new_sims['parameters'] = self._reconfigure_samples(new_sims['parameters'])
         return new_sims
+
+    @abstractmethod
+    def plot_example(self, params: Optional[np.ndarray] = None) -> None:
+        """Plots an individual trajectory of an individual in this model."""
+        raise NotImplementedError
+
+    @staticmethod
+    @abstractmethod
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+        raise NotImplementedError
 
 
 def batch_gaussian_prior(mean: np.ndarray,

@@ -245,6 +245,7 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         return true_pop_parameters
 
     def plot_example(self, params: Optional[np.ndarray] = None) -> None:
+        """Plots an individual trajectory of an individual in this model."""
         if params is None:
             params = self.prior(10)['prior_draws']
 
