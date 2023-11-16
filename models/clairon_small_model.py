@@ -67,6 +67,9 @@ def batch_simulator(param_batch: np.ndarray,
                     ) -> np.ndarray:
     """
     Simulate a batch of parameter sets.
+
+    param_batch: np.ndarray - (#simulations, #parameters) or (#parameters)
+
     If time points for measurements and dosing events are not given, they are sampled.
     If convert_to_bf_batch is True, the output is in the format used by the bayesflow summary model, else only the
         measurements are returned.

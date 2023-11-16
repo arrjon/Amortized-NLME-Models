@@ -124,7 +124,7 @@ def batch_simulator(param_batch: np.ndarray, n_obs: int, with_noise: bool = True
     n_obs: int - number of observations to generate
     with_noise: bool - if noise should be added to the simulation (must be true during training)
 
-    Return: sim_data: np.ndarray - simulated data (#simulations, #observations, 1) or (#observations, 1)
+    Return: sim_data: np.ndarray - simulated data (#simulations, #observations, 1) or (#observations)
     """
     # simulate batch
     if param_batch.ndim == 1:  # so not (batch_size, params)
