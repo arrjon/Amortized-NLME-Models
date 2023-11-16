@@ -166,4 +166,4 @@ cython_debug/
 /data/pharma/
 /plots/
 .idea
-/Experiments/results_monolix/detailed_model/detailed_model_synthetic_results/
+/Experiments/results_monolix/fröhlich-detailed/detailed_model_synthetic_results/
