@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-from functools import partial
 from typing import Union, Optional
 import numpy as np
 import pandas as pd
@@ -27,15 +26,13 @@ def run_population_optimization(
         file_name: Optional[str] = None,
         verbose: bool = False,
         trace_record: bool = False,
-        multi_experiment: bool = False,
         pesto_multi_processes: int = 1,
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         result: Optional[Result] = None
 ):
     # set up pyPesto
-    param_names_opt = create_param_names_opt(bf_amortizer=individual_model.amortizer,
-                                             param_names=param_names,
-                                             multi_experiment=multi_experiment)
+    param_names_opt = create_param_names_opt(dim=individual_model.amortizer.latent_dim,
+                                             param_names=param_names)
     # create bounds if none are given
     if param_bounds is None:
         # automatically create boundaries
@@ -80,25 +77,11 @@ def run_population_optimization(
         # if pesto_multi_processes > 1, same objective function is used for all starting points
 
         # create objective function with samples
-        objective_function = create_objective_with_samples(data=data,
-                                                           objective_function=objective_function,
-                                                           sample_posterior=individual_model.draw_posterior_samples,
-                                                           n_samples_opt=n_samples_opt,
-                                                           multi_experiment=multi_experiment)
-        # wrap finite difference around objective function
-        if multi_experiment:
-            # extract indices of param names containing eGFP
-            param_idx_egfp = [i_n for i_n, name in enumerate(param_names_opt) if 'd2eGFP' not in name]
-            param_idx_d2egfp = [i_n for i_n, name in enumerate(param_names_opt) if
-                                'd2eGFP' in name or 'eGFP' not in name]
-            pesto_objective = FD(obj=Objective(fun=partial(obj_fun_multi_helper,
-                                                           param_idx_egfp=param_idx_egfp,
-                                                           param_idx_d2egfp=param_idx_d2egfp,
-                                                           obj_fun_amortized=objective_function[0],
-                                                           obj_fun_amortized_2=objective_function[1]),
-                                               x_names=param_names_opt))
-        else:
-            pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
+        param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
+        # update objective function with samples
+        objective_function.update_param_samples(param_samples=param_samples)
+
+        pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
 
         # create pypesto problem
         pesto_problem = Problem(objective=pesto_objective,
@@ -128,28 +111,14 @@ def run_population_optimization(
             overwrite=True if file_name is not None else False)
 
     # make final objective value comparable across samples
-    objective_function = create_objective_with_samples(data=data,
-                                                       objective_function=objective_function,
-                                                       sample_posterior=individual_model.draw_posterior_samples,
-                                                       n_samples_opt=n_samples_opt * 100,
-                                                       # always use more samples for final evaluation
-                                                       # MC integration error reduces with sqrt(1/n_samples)
-                                                       multi_experiment=multi_experiment)
+    # always use more samples for final evaluation
+    # MC integration error reduces with sqrt(1/n_samples)
+    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt * 100)
+    # update objective function with samples
+    objective_function.update_param_samples(param_samples=param_samples)
 
     # wrap finite difference around objective function
-    if multi_experiment:
-        # extract indices of param names containing eGFP
-        param_idx_egfp = [i_n for i_n, name in enumerate(param_names_opt) if 'd2eGFP' not in name]
-        param_idx_d2egfp = [i_n for i_n, name in enumerate(param_names_opt) if
-                            'd2eGFP' in name or 'eGFP' not in name]
-        pesto_objective = FD(obj=Objective(fun=partial(obj_fun_multi_helper,
-                                                       param_idx_egfp=param_idx_egfp,
-                                                       param_idx_d2egfp=param_idx_d2egfp,
-                                                       obj_fun_amortized=objective_function[0],
-                                                       obj_fun_amortized_2=objective_function[1]),
-                                           x_names=param_names_opt))
-    else:
-        pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
+    pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
     pesto_problem = Problem(objective=pesto_objective,
                             lb=param_bounds[0, :], ub=param_bounds[1, :],
                             x_names=param_names_opt,
@@ -164,39 +133,3 @@ def run_population_optimization(
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
     return result
-
-
-def create_objective_with_samples(data: Union[np.ndarray, list],
-                                  objective_function: Union[ObjectiveFunctionNLME, list[ObjectiveFunctionNLME]],
-                                  sample_posterior: callable,
-                                  n_samples_opt: int = 100,
-                                  multi_experiment: bool = False,
-                                  ) -> Union[ObjectiveFunctionNLME, list[ObjectiveFunctionNLME]]:
-    # create objective function from samples
-    # sample parameters from amortizer given observed data
-    if not multi_experiment:
-        param_samples = sample_posterior(data=data, n_samples=n_samples_opt)
-        # update objective function with samples
-        objective_function.update_param_samples(param_samples=param_samples)
-    else:
-        # list of samples per experiment, needs adapted objective function
-        data_eGFP, data_d2eGFP = data
-        param_samples_eGFP = sample_posterior(data=data_eGFP,
-                                              n_samples=n_samples_opt)
-        param_samples_d2eGFP = sample_posterior(data=data_d2eGFP,
-                                                n_samples=n_samples_opt)
-        objective_function[0].update_param_samples(param_samples=param_samples_eGFP)
-        objective_function[1].update_param_samples(param_samples=param_samples_d2eGFP)
-    return objective_function
-
-
-def obj_fun_multi_helper(params: np.ndarray,
-                         param_idx_egfp: list,
-                         param_idx_d2egfp: list,
-                         obj_fun_amortized: ObjectiveFunctionNLME,
-                         obj_fun_amortized_2: ObjectiveFunctionNLME):
-    """
-    Helper function to evaluate objective function for a multiple experiments setup.
-    """
-    # compute objective function
-    return obj_fun_amortized(params[param_idx_egfp]) + obj_fun_amortized_2(params[param_idx_d2egfp])
