@@ -86,7 +86,6 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         prior_diag = np.array([5., 5., 2., 2., 2., 2., 2., 5., 2., 5., 2.])
         prior_diag[3] = 1  # otherwise too many samples lead to overflow
         prior_cov = np.diag(prior_diag)
-        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -94,6 +93,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
+                         prior_type='normal',
                          max_n_obs=180)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
@@ -107,7 +107,8 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = -1
+            model_idx = 15
+            # amortizer-detailed-fro-sequence-summary-Bi-LSTM-8layers-3coupling-spline-750epochs -> 14
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]

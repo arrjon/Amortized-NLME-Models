@@ -189,7 +189,6 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([-5., 6.5, 2.5, 2.5, 6.5, 0., 6.5, -3., -1., -1., 0.])
         prior_cov = np.diag(np.array([4.5, 1., 1., 1., 1., 1., 1., 4.5, 2., 2., 1.]))
-        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -197,6 +196,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
+                         prior_type='normal',
                          max_n_obs=230,
                          changeable_obs_n=True)  # 26 measurement max, 179 dosages max
         self.simulator = Simulator(batch_simulator_fun=batch_simulator)
@@ -210,7 +210,8 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = -1
+            model_idx = 3
+            # amortizer-pharma-split-sequence-summary-Bi-LSTM-7layers-2coupling-spline-750epochs -> 3
 
         summary_network_type = ['sequence', 'split-sequence']
         bidirectional_LSTM = [True, False]
@@ -250,7 +251,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
     def load_data(self,
                   n_data: Optional[int] = None,
-                  file_name: str = 'data/pharma/Suni_PK_final.csv',
+                  file_name: str = '../data/pharma/Suni_PK_final.csv',
                   synthetic: bool = False) -> list[np.ndarray]:
         if not synthetic:
             data = load_data(file_name=file_name, number_data_points=n_data)
@@ -382,7 +383,7 @@ def read_csv_pharma(csv_file: str) -> pd.DataFrame:
 
 
 # load data from files
-def load_data(file_name: str = 'data/pharma/Suni_PK_final.csv',
+def load_data(file_name: str = '../data/pharma/Suni_PK_final.csv',
               number_data_points: Optional[int] = None) -> list[np.ndarray]:
     data_raw = read_csv_pharma(file_name)
     data = convert_csv_to_simulation_data(data_raw)

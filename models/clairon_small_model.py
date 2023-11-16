@@ -190,7 +190,6 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         # define prior bounds for uniform prior
         # self.prior_bounds = np.array([[-10, 5], [-5, 10], [-5, 10], [-20, 0], [-10, 0], [-10, 0], [-10, 0]])
         self.prior_bounds = np.array([[-5, 7], [-5, 7], [-5, 7], [-5, 7], [-5, 0], [-5, 0], [-5, 0]])
-        self.prior_type = prior_type
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -198,6 +197,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
+                         prior_type=prior_type,
                          max_n_obs=7)  # 4 measurements, 3 doses
 
         self.simulator = Simulator(batch_simulator_fun=batch_simulator)

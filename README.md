@@ -51,12 +51,13 @@ class myModel(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([0, 0])
         prior_cov = np.diag([1, 1])
-        self.prior_type = 'normal'
+        prior_type = 'normal'
 
         super().__init__(name=name,
                          param_names=param_names,
                          prior_mean=prior_mean,
-                         prior_cov=prior_cov)
+                         prior_cov=prior_cov
+                         prior_type=prior_type)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
                                                                   other_args=other_args))

@@ -161,7 +161,6 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([-3., -3., -1., 5., 0., 0., 0., -1.])
         prior_cov = np.diag([5., 5., 5., 5., 5., 2., 5., 2.])
-        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -169,6 +168,7 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
+                         prior_type='normal',
                          max_n_obs=180)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
@@ -182,7 +182,8 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = -1
+            model_idx = 3
+            # amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-750epochs -> 3
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]

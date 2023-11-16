@@ -138,9 +138,8 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         param_names = ['$\delta$', '$\gamma$', '$k m_0$-scale', '$t_0$', 'offset', '$\sigma$']
 
         # define prior values (for log-parameters)
-        prior_mean = np.array([-3., -3., 5., 0., 0., -.1])
+        prior_mean = np.array([-3., -3., 5., 0., 0., -1.])
         prior_cov = np.diag([5., 5., 11., 2., 6., 2.])
-        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -148,6 +147,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
+                         prior_type='normal',
                          max_n_obs=180)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
@@ -161,7 +161,8 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = -1
+            model_idx = 9
+            # amortizer-small-fro-sequence-summary-Bi-LSTM-6layers-2coupling-spline-500epochs -> 9
 
         summary_network_type = ['sequence']
         bidirectional_LSTM = [False, True]
