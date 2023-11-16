@@ -54,15 +54,9 @@ def create_boundaries_from_prior(
     return np.stack((lower_bound, upper_bound))
 
 
-def create_param_names_opt(bf_amortizer: AmortizedPosterior,
+def create_param_names_opt(dim: int,
                            param_names: list,
-                           multi_experiment: bool = False,
                            ):
-    if not multi_experiment:
-        dim = bf_amortizer.latent_dim
-    else:
-        dim = bf_amortizer.latent_dim + 1
-
     # create parameter names for optimization problem
     param_names_opt = []
     for i, name in enumerate(param_names):
