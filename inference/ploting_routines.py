@@ -20,8 +20,8 @@ def visualize_pesto_result(result: Result):
 
     visualize.parameters(result, colors=color_map)
 
-    if result.optimize_result.history[0].options.trace_record:
-        visualize.optimizer_history(result, colors=color_map)
+    if result.optimize_result.history[0] is not None and result.optimize_result.history[0].options.trace_record:
+            visualize.optimizer_history(result, colors=color_map)
     return
 
 
