@@ -93,7 +93,7 @@ def batch_simulator(param_batch: np.ndarray,
     exp_func: str - if 'exp' then exp(log_param_samples) is used as parameter samples, otherwise
                     if exp_func == 'power10' then 10**log_param_samples is used as parameter samples
 
-    Return: sim_data: np.ndarray - simulated data (#simulations, #observations, 1) or (#observations, 1)
+    Return: sim_data: np.ndarray - simulated data (#simulations, #observations, 1) or (#observations)
     """
 
     # simulate batch
