@@ -194,9 +194,6 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design, summary_network_type))
 
-        # also test on configuration with a transformer as summary network
-        combinations.append((False, 7, 2, 'affine', 'transformer'))
-
         if model_idx >= len(combinations) or model_idx < 0:
             model_name = f'amortizer-sde-fro' \
                          f'-{self.summary_network_type}-summary' \

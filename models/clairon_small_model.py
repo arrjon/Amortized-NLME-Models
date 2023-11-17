@@ -244,7 +244,9 @@ class ClaironSmallModel(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = -1
+            model_idx = 15
+            # amortizer-clairon-normal-sequence-summary-Bi-LSTM-7layers-3coupling-spline-500epochs -> 11
+            # amortizer-clairon-normal-sequence-summary-Bi-LSTM-8layers-3coupling-spline-500epochs -> 15
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]
@@ -254,9 +256,6 @@ class ClaironSmallModel(NlmeBaseAmortizer):
 
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design, summary_network_type))
-
-        # also test on configuration with a transformer as summary network
-        combinations.append((False, 7, 2, 'affine', 'transformer'))
 
         if model_idx >= len(combinations) or model_idx < 0:
             model_name = f'amortizer-clairon-{self.prior_type}' \

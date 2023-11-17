@@ -50,8 +50,8 @@ def second_term_gaussian(log_phi: np.ndarray,  # individual parameter excluding 
 @njit(parallel=True)
 def compute_log_sum(n_sim: int,
                     n_samples: int,
-                    param_samples: np.ndarray,
-                    param_samples_cov: np.ndarray,  # param_samples_cov = param_samples if no covariates are given
+                    log_param_samples: np.ndarray,
+                    log_param_samples_cov: np.ndarray,  # param_samples_cov = param_samples if no covariates are given
                     beta: np.ndarray,  # beta is the mean of the population distribution
                     psi_inverse: np.ndarray,  # psi_inverse is the inverse covariance of the population distribution
                     prior_mean: np.ndarray = None,  # (only really needed for gaussian prior)
@@ -70,8 +70,9 @@ def compute_log_sum(n_sim: int,
     for sim_idx in prange(n_sim):
         for sample_idx in prange(n_samples):
             # compute individual-specific contribution to expectation value
-            expectation_approx[sim_idx, sample_idx] = second_term_gaussian(log_phi=param_samples[sim_idx, sample_idx],
-                                                                           log_phi_cov=param_samples_cov[
+            expectation_approx[sim_idx, sample_idx] = second_term_gaussian(log_phi=log_param_samples[sim_idx,
+                                                                                                     sample_idx],
+                                                                           log_phi_cov=log_param_samples_cov[
                                                                                sim_idx, sample_idx],
                                                                            beta=beta,
                                                                            psi_inverse=psi_inverse,
@@ -80,6 +81,10 @@ def compute_log_sum(n_sim: int,
                                                                            huber_loss_delta=huber_loss_delta,
                                                                            cholesky_psi=cholesky_psi)
 
+    # log normal distribution is 1/x * normal distribution of log(x)
+    # if prior and population distribution are both on log space this cancels out
+    # but if covariates are fitted as well, samples are shifted and this does not cancel out
+    expectation_approx += np.sum(log_param_samples - log_param_samples_cov, axis=2)
     return expectation_approx
 
 
@@ -184,8 +189,8 @@ class ObjectiveFunctionNLME:
         expectation_approx = compute_log_sum(
             n_sim=self.n_sim,
             n_samples=self.n_samples,
-            param_samples=self.param_samples,
-            param_samples_cov=self.param_samples_cov,  # param_samples_cov = param_samples if no covariates are given
+            log_param_samples=self.param_samples,
+            log_param_samples_cov=self.param_samples_cov,  # param_samples_cov = param_samples if no covariates
             beta=beta,  # beta is the mean of the population distribution
             psi_inverse=psi_inverse,  # psi_inverse is the inverse covariance of the population distribution
             prior_mean=self.prior_mean,  # (only really needed for gaussian prior)
@@ -205,9 +210,13 @@ class ObjectiveFunctionNLME:
         # get parameter vectors
         # vector_params = (beta, psi_inverse_vector, covariates_params)
         beta = vector_params[:self.param_dim]
-        psi_inverse_vector = vector_params[self.param_dim:-self.n_covariates]
+        if self.n_covariates == 0:
+            psi_inverse_vector = vector_params[self.param_dim:]
+            covariates_params = []
+        else:
+            psi_inverse_vector = vector_params[self.param_dim:-self.n_covariates]
+            covariates_params = vector_params[-self.n_covariates:]
         psi_inverse = self.get_inverse_covariance(psi_inverse_vector)
-        covariates_params = vector_params[-self.n_covariates:]
 
         # include covariates
         if self.covariates is not None:

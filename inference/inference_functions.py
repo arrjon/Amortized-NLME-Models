@@ -92,10 +92,10 @@ def run_population_optimization(
                                 x_fixed_vals=x_fixed_vals)
         if verbose and run_idx == 0:
             pesto_problem.print_parameter_summary()
-            df = pd.DataFrame(pesto_problem.x_fixed_vals,
-                              index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],
-                              columns=['fixed value'])
-            print(df)
+            df_fixed = pd.DataFrame(pesto_problem.x_fixed_vals,
+                                    index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],
+                                    columns=['fixed value'])
+            print(df_fixed)
 
         # Run optimizations for different starting values
         result = optimize.minimize(
@@ -117,19 +117,9 @@ def run_population_optimization(
     # update objective function with samples
     objective_function.update_param_samples(param_samples=param_samples)
 
-    # wrap finite difference around objective function
-    pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
-    pesto_problem = Problem(objective=pesto_objective,
-                            lb=param_bounds[0, :], ub=param_bounds[1, :],
-                            x_names=param_names_opt,
-                            x_scales=['log'] * len(param_names_opt),
-                            x_fixed_indices=x_fixed_indices,
-                            x_fixed_vals=x_fixed_vals)
-    setattr(result, "problem", pesto_problem)
-
     result_list = result.optimize_result.list.copy()
     for res in result_list:
-        res['fval'] = result.problem.objective(res['x'][result.problem.x_free_indices])
+        res['fval'] = objective_function(res['x'])
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
     return result

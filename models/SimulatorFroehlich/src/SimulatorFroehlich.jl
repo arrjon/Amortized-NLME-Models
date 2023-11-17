@@ -90,11 +90,10 @@ function simulateLargeModel(
         saveat=t_eval,
         verbose=false)
 
-    # check if simulation was measurable
-    #if t0_sol > sol.t[end]
-    #    simulations .= log(offset)
-    #    return simulations
-    #end
+    # check if any simulation happened
+    if t_first > sol.t[end]
+        return simulations
+    end
 
     # use saved time points to evaluate, but solver might stopped earlier so only up to sol.t[end]
     t_eval_sol = range.(t_first, sol.t[end], step=1/6)
