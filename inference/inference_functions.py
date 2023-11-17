@@ -16,10 +16,12 @@ def run_population_optimization(
         individual_model: NlmeBaseAmortizer,
         data: Union[np.ndarray, list[np.ndarray]],
         param_names: list,
-        objective_function: Union[ObjectiveFunctionNLME, list[ObjectiveFunctionNLME]],
+        cov_type: str = 'diag',
         n_multi_starts: int = 1,
         n_samples_opt: int = 100,
         param_bounds: Optional[np.array] = None,
+        covariates: Optional[np.ndarray] = None,
+        covariate_mapping: Optional[callable] = None,
         covariates_bounds: Optional[np.ndarray] = None,
         x_fixed_indices: Optional[np.ndarray] = None,
         x_fixed_vals: Optional[np.ndarray] = None,
@@ -30,8 +32,21 @@ def run_population_optimization(
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         result: Optional[Result] = None
 ):
+    # create objective function
+    obj_fun_amortized = ObjectiveFunctionNLME(model_name=individual_model.name,
+                                              prior_mean=individual_model.prior_mean,
+                                              prior_std=individual_model.prior_std,
+                                              covariance_format=cov_type,
+                                              covariates=covariates,
+                                              covariate_mapping=covariate_mapping,
+                                              prior_type=individual_model.prior_type,
+                                              # for uniform prior
+                                              prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
+                                                                                                    'prior_bounds') else None,
+                                              )
     # set up pyPesto
     param_names_opt = create_param_names_opt(dim=individual_model.amortizer.latent_dim,
+                                             cov_type=cov_type,
                                              param_names=param_names)
     # create bounds if none are given
     if param_bounds is None:
@@ -42,12 +57,7 @@ def run_population_optimization(
             prior_type=individual_model.prior_type,
             prior_bounds=individual_model.prior_bounds if hasattr(individual_model, 'prior_bounds') else None,
             covariates_bounds=covariates_bounds,  # only used if covariates are used
-            covariance_format=objective_function.covariance_format)
-    if x_fixed_indices is not None and x_fixed_vals is not None:
-        too_small_idx = x_fixed_vals < param_bounds[0, x_fixed_indices]
-        x_fixed_vals[too_small_idx] = param_bounds[0, x_fixed_indices][too_small_idx]
-        too_large_idx = x_fixed_vals > param_bounds[1, x_fixed_indices]
-        x_fixed_vals[too_large_idx] = param_bounds[1, x_fixed_indices][too_large_idx]
+            covariance_format=cov_type)
 
     # save optimizer trace
     history_options = HistoryOptions(trace_record=trace_record)
@@ -79,9 +89,9 @@ def run_population_optimization(
         # create objective function with samples
         param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
         # update objective function with samples
-        objective_function.update_param_samples(param_samples=param_samples)
+        obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
-        pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
+        pesto_objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
 
         # create pypesto problem
         pesto_problem = Problem(objective=pesto_objective,
@@ -115,11 +125,11 @@ def run_population_optimization(
     # MC integration error reduces with sqrt(1/n_samples)
     param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt * 100)
     # update objective function with samples
-    objective_function.update_param_samples(param_samples=param_samples)
+    obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
     result_list = result.optimize_result.list.copy()
     for res in result_list:
-        res['fval'] = objective_function(res['x'])
+        res['fval'] = obj_fun_amortized(res['x'])
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
     return result

@@ -147,19 +147,22 @@ class ObjectiveFunctionNLME:
             raise ValueError(f'prior_type must be either "gaussian" or "uniform", but is {prior_type}')
 
         # some constants
-        self.n_sim, self.n_samples, n_posterior_params = param_samples.shape
+        self.n_sim, self.n_samples, n_posterior_params = self.param_samples.shape
         # number of parameters for the population distribution (does not include covariates)
         self.param_dim = self.prior_mean.size
 
         # prepare covariates
         self.covariates = covariates
-        self.covariate_mapping = covariate_mapping  # maps samples parameters, covariates to distributional parameters
+        # maps samples parameters, covariates to distributional parameters
+        self.covariate_mapping = covariate_mapping
         if covariates is not None:
             assert covariate_mapping is not None, '"covariate_mapping" must be specified if covariates are given'
             self.n_covariates = covariates.shape[1]
+            self.param_samples_cov = self.param_samples.copy()
         else:
             self.n_covariates = 0
             self.param_samples_cov = self.param_samples
+            self.covariate_mapping = None
 
         # prepare computation of loss
         self.log_n_samples = np.log(self.n_samples)
@@ -176,11 +179,13 @@ class ObjectiveFunctionNLME:
         self.log_n_samples = np.log(self.n_samples)
         assert n_posterior_params == self.prior_mean.size, 'number of posterior parameters does not match prior'
 
-        if self.covariates is not None:
+        if self.n_covariates > 0:
             assert self.covariates.shape[0] == self.n_sim, \
                 'number of covariates does not match number of simulations'
             assert self.covariate_mapping is not None, '"covariate_mapping" must be specified if covariates are given'
+            self.param_samples_cov = self.param_samples.copy()
         else:
+            # if no covariates are given
             self.param_samples_cov = self.param_samples
         return
 
@@ -209,6 +214,7 @@ class ObjectiveFunctionNLME:
     def __call__(self, vector_params: np.ndarray) -> float:
         # get parameter vectors
         # vector_params = (beta, psi_inverse_vector, covariates_params)
+        # covariates_params might be empty
         beta = vector_params[:self.param_dim]
         if self.n_covariates == 0:
             psi_inverse_vector = vector_params[self.param_dim:]
@@ -219,9 +225,9 @@ class ObjectiveFunctionNLME:
         psi_inverse = self.get_inverse_covariance(psi_inverse_vector)
 
         # include covariates
-        if self.covariates is not None:
+        if self.n_covariates > 0:
             # if no covariates are given, param_samples_cov = param_samples
-            self.param_samples_cov = self.covariate_mapping(param_samples=self.param_samples,
+            self.param_samples_cov = self.covariate_mapping(param_samples=self.param_samples.copy(),
                                                             covariates=self.covariates,
                                                             covariate_params=covariates_params)
 

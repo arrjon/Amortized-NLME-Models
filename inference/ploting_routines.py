@@ -10,18 +10,20 @@ from scipy.stats import lognorm, entropy
 from scipy.stats import t as t_dist
 
 
-def visualize_pesto_result(result: Result):
+def visualize_pesto_result(result: Result, use_batch_coloring: bool = True) -> None:
     # visualize results of optimization
-    # results' id is "batch_id_run_id", so int(s.split('_')[1]) gives us the run_id
-    c_id = np.array([int(s.split('_')[1]) for s in result.optimize_result.as_dataframe()['id']])
-    cm_mapper = cm.ScalarMappable(norm=cm.colors.Normalize(vmin=0, vmax=np.max(c_id) + 1), cmap=cm.hsv)
-    color_map = cm_mapper.to_rgba(c_id)
+    if use_batch_coloring:
+        # results' id is "batch_id_run_id", so int(s.split('_')[1]) gives us the run_id
+        c_id = np.array([int(s.split('_')[1]) for s in result.optimize_result.as_dataframe()['id']])
+        cm_mapper = cm.ScalarMappable(norm=cm.colors.Normalize(vmin=0, vmax=np.max(c_id) + 1), cmap=cm.hsv)
+        color_map = cm_mapper.to_rgba(c_id)
+    else:
+        color_map = None
+
     visualize.waterfall(result, colors=color_map)
-
     visualize.parameters(result, colors=color_map)
-
     if result.optimize_result.history[0] is not None and result.optimize_result.history[0].options.trace_record:
-            visualize.optimizer_history(result, colors=color_map)
+        visualize.optimizer_history(result, colors=color_map)
     return
 
 

@@ -60,6 +60,7 @@ def create_boundaries_from_prior(
 
 
 def create_param_names_opt(dim: int,
+                           cov_type: str,
                            param_names: list,
                            ):
     # create parameter names for optimization problem
@@ -69,8 +70,8 @@ def create_param_names_opt(dim: int,
             param_names_opt.append(name)
         elif i < 2 * dim:
             # only change variance params
-            param_names_opt.append('$\log$ (' + name + ')^{-1}')
-        elif i < 2 * dim + dim * (dim - 1) // 2:
+            param_names_opt.append('$-\log$ (' + name + ')')
+        elif i < 2 * dim + dim * (dim - 1) // 2 and cov_type == 'cholesky':
             # only change correlation params
             param_names_opt.append('inv_' + name)
         else:
@@ -160,7 +161,7 @@ def create_fixed_params(fix_names: list, fixed_values: list,
             # variance parameters are log-inverse-transformed
             if fixed_values[n_i] == 0:
                 # if variance is zero, set to lower bound (or upper bound of log-inverse-transformed)
-                temp_val = np.Inf
+                temp_val = -np.log(0.001)
             else:
                 temp_val = np.log(1 / fixed_values[n_i])
         else:
