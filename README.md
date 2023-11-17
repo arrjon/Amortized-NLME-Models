@@ -32,7 +32,7 @@ from bayesflow import diagnostics
 
 Define a function for simulation of data. Takes in a batch of parameters in the form
 (#simulations, #parameters) and returns a batch of data in the form (#simulations, #data).
-```
+
 This function should be implemented in an efficient way (e.g. using [numba](https://numba.pydata.org) or import a julia function).
 ```
 def batch_simulator(param_samples: np.ndarray, other_args) -> np.ndarray:
