@@ -23,6 +23,7 @@ from models.froehlich_model_simple import load_single_cell_data, load_multi_expe
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorFroehlich')
 jlPkg.activate(env)
+# jlPkg.activate('models/SimulatorFroehlich')
 jl.seval("using SimulatorFroehlich")
 
 

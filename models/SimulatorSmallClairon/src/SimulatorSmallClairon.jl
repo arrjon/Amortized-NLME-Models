@@ -28,6 +28,7 @@ pars = [fM2, fM3, theta, deltaAb, deltaV, deltaS]::Vector{Num}
 @named sys = ODESystem(eqs, t, vars, pars)
 sys = structural_simplify(sys)
 
+
 function simulateSmallClairon(
     parameters::Vector{Float64},
     x0s::Vector{Float64},
@@ -82,10 +83,11 @@ function simulateSmallClairon(
     # Solve using `alg` algorithm with addition of callbacks
     solver = solve(
         problem,
-        alg = Tsit5(),
-        tstops = vcat(t_measurements, dosetimes),
-        callback = cbs;
-        verbose = false
+        alg=Tsit5(),
+        tstops=dosetimes,
+        saveat=t_measurements,
+        callback=cbs;
+        verbose=false
     )
 
     # Return observed
