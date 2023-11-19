@@ -22,6 +22,7 @@ def run_population_optimization(
         param_bounds: Optional[np.array] = None,
         covariates: Optional[np.ndarray] = None,
         covariate_mapping: Optional[callable] = None,
+        n_covariates_params: int = 0,
         covariates_bounds: Optional[np.ndarray] = None,
         x_fixed_indices: Optional[np.ndarray] = None,
         x_fixed_vals: Optional[np.ndarray] = None,
@@ -31,7 +32,7 @@ def run_population_optimization(
         pesto_multi_processes: int = 1,
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         result: Optional[Result] = None
-):
+) -> (Result, ObjectiveFunctionNLME):
     # create objective function
     obj_fun_amortized = ObjectiveFunctionNLME(model_name=individual_model.name,
                                               prior_mean=individual_model.prior_mean,
@@ -39,6 +40,7 @@ def run_population_optimization(
                                               covariance_format=cov_type,
                                               covariates=covariates,
                                               covariate_mapping=covariate_mapping,
+                                              n_covariates_params=n_covariates_params,
                                               prior_type=individual_model.prior_type,
                                               # for uniform prior
                                               prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
@@ -123,7 +125,7 @@ def run_population_optimization(
     # make final objective value comparable across samples
     # always use more samples for final evaluation
     # MC integration error reduces with sqrt(1/n_samples)
-    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt * 100)
+    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt * 10)
     # update objective function with samples
     obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
@@ -132,4 +134,8 @@ def run_population_optimization(
         res['fval'] = obj_fun_amortized(res['x'])
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
-    return result
+
+    # update objective function with fewer samples (for faster evaluation, e.g. profiling)
+    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
+    obj_fun_amortized.update_param_samples(param_samples=param_samples)
+    return result, obj_fun_amortized

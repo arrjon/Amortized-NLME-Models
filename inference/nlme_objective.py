@@ -10,16 +10,14 @@ from scipy.special import logsumexp
 
 @njit()
 def second_term_gaussian(log_phi: np.ndarray,  # individual parameter excluding covariates (for prior)
-                         log_phi_cov: np.ndarray,  # individual parameter including covariates
                          beta: np.ndarray,
                          psi_inverse: np.ndarray,
                          prior_mean: np.ndarray,
                          prior_cov_inverse: Optional[np.ndarray] = None,
                          huber_loss_delta: Optional[float] = None,
-                         cholesky_psi: Optional[np.ndarray] = None  # precomputed cholesky decomposition for huber loss
                          ) -> float:
     """compute second term of objective function for gaussian likelihood"""
-    dif = log_phi_cov - beta
+    dif = log_phi - beta
 
     # population density
     if huber_loss_delta is None:
@@ -27,6 +25,7 @@ def second_term_gaussian(log_phi: np.ndarray,  # individual parameter excluding 
         temp_psi = 0.5 * np.dot(np.dot(dif, psi_inverse), dif.T)
     else:
         # compute huber loss
+        cholesky_psi = np.linalg.cholesky(psi_inverse)
         dif_psi_norm = np.linalg.norm(np.dot(dif, cholesky_psi))
         if np.abs(dif_psi_norm) <= huber_loss_delta:
             temp_psi = 0.5 * dif_psi_norm ** 2
@@ -47,44 +46,63 @@ def second_term_gaussian(log_phi: np.ndarray,  # individual parameter excluding 
     return second_term
 
 
-@njit(parallel=True)
-def compute_log_sum(n_sim: int,
-                    n_samples: int,
-                    log_param_samples: np.ndarray,
-                    log_param_samples_cov: np.ndarray,  # param_samples_cov = param_samples if no covariates are given
-                    beta: np.ndarray,  # beta is the mean of the population distribution
-                    psi_inverse: np.ndarray,  # psi_inverse is the inverse covariance of the population distribution
-                    prior_mean: np.ndarray = None,  # (only really needed for gaussian prior)
-                    prior_cov_inverse: Optional[np.ndarray] = None,  # None if uniform prior
-                    huber_loss_delta: Optional[float] = None  # 1.5 times the median of the standard deviations
-                    ) -> np.ndarray:
-    """compute log-sum-exp of second term in objective function with numba"""
-    if huber_loss_delta is not None:
-        # precompute cholesky decomposition of psi_inverse
-        cholesky_psi = np.linalg.cholesky(psi_inverse)
-    else:
-        cholesky_psi = None
-
+@njit(parallel=True)  # for very small datasets parallelization actually slows down the computation a bit
+def compute_log_integrand(n_sim: int,
+                          n_samples: int,
+                          log_param_samples: np.ndarray,
+                          # log_param_samples_cov: np.ndarray,
+                          # param_samples_cov = param_samples if no covariates are given
+                          beta: np.ndarray,  # beta is the mean of the population distribution
+                          psi_inverse: np.ndarray,  # psi_inverse is the inverse covariance of the population
+                          beta_transformed: Optional[np.ndarray] = None,  # beta including covariates, hence changing
+                          # for every data point
+                          psi_inverse_transformed: Optional[np.ndarray] = None,
+                          # psi_inverse including covariates, hence changing for every data point
+                          prior_mean: np.ndarray = None,  # (only really needed for gaussian prior)
+                          prior_cov_inverse: Optional[np.ndarray] = None,  # None if uniform prior
+                          huber_loss_delta: Optional[float] = None  # 1.5 times the median of the standard deviations
+                          ) -> np.ndarray:
+    """compute the log of the integrand of the expectation with numba"""
     # each evaluation of the objective function is independent of the others, so we can parallelize
     expectation_approx = np.zeros((n_sim, n_samples))
-    for sim_idx in prange(n_sim):
-        for sample_idx in prange(n_samples):
-            # compute individual-specific contribution to expectation value
-            expectation_approx[sim_idx, sample_idx] = second_term_gaussian(log_phi=log_param_samples[sim_idx,
-                                                                                                     sample_idx],
-                                                                           log_phi_cov=log_param_samples_cov[
-                                                                               sim_idx, sample_idx],
-                                                                           beta=beta,
-                                                                           psi_inverse=psi_inverse,
-                                                                           prior_mean=prior_mean,
-                                                                           prior_cov_inverse=prior_cov_inverse,
-                                                                           huber_loss_delta=huber_loss_delta,
-                                                                           cholesky_psi=cholesky_psi)
 
-    # log normal distribution is 1/x * normal distribution of log(x)
-    # if prior and population distribution are both on log space this cancels out
-    # but if covariates are fitted as well, samples are shifted and this does not cancel out
-    expectation_approx += np.sum(log_param_samples - log_param_samples_cov, axis=2)
+    # if no covariates are given, beta_transformed = beta and psi_inverse_transformed = psi_inverse
+    if beta_transformed is None and psi_inverse_transformed is None:
+        for sim_idx in prange(n_sim):
+            for sample_idx in prange(n_samples):
+                # compute individual-specific contribution to expectation value
+                expectation_approx[sim_idx, sample_idx] = second_term_gaussian(
+                    log_phi=log_param_samples[sim_idx, sample_idx],
+                    beta=beta,
+                    psi_inverse=psi_inverse,
+                    prior_mean=prior_mean,
+                    prior_cov_inverse=prior_cov_inverse,
+                    huber_loss_delta=huber_loss_delta
+                )
+    elif beta_transformed is not None and psi_inverse_transformed is None:
+        for sim_idx in prange(n_sim):
+            for sample_idx in prange(n_samples):
+                # compute individual-specific contribution to expectation value
+                expectation_approx[sim_idx, sample_idx] = second_term_gaussian(
+                    log_phi=log_param_samples[sim_idx, sample_idx],
+                    beta=beta_transformed[sim_idx],  # changing for every data point
+                    psi_inverse=psi_inverse,
+                    prior_mean=prior_mean,
+                    prior_cov_inverse=prior_cov_inverse,
+                    huber_loss_delta=huber_loss_delta
+                )
+    else:  # we assume that psi is never None if beta_transformed is not None
+        for sim_idx in prange(n_sim):
+            for sample_idx in prange(n_samples):
+                # compute individual-specific contribution to expectation value
+                expectation_approx[sim_idx, sample_idx] = second_term_gaussian(
+                    log_phi=log_param_samples[sim_idx, sample_idx],
+                    beta=beta_transformed[sim_idx],  # changing for every data point
+                    psi_inverse=psi_inverse_transformed[sim_idx],  # changing for every data point
+                    prior_mean=prior_mean,
+                    prior_cov_inverse=prior_cov_inverse,
+                    huber_loss_delta=huber_loss_delta
+                )
     return expectation_approx
 
 
@@ -103,6 +121,7 @@ class ObjectiveFunctionNLME:
                  covariance_format: str = 'diag',
                  covariates: Optional[np.ndarray] = None,
                  covariate_mapping: Optional[callable] = None,
+                 n_covariates_params: int = 0,
                  correlation_penalty: Optional[float] = None,
                  huber_loss_delta: Optional[float] = None,
                  prior_type: str = 'normal',
@@ -116,6 +135,7 @@ class ObjectiveFunctionNLME:
         :param covariance_format: either 'diag' or 'cholesky'
         :param covariates: numpy array of covariates
         :param covariate_mapping: function that maps parameters, covariates to distributional parameters
+        :param n_covariates_params: number of parameters for covariates function
         :param correlation_penalty: l1 penalty for correlations
         :param huber_loss_delta: delta for huber loss (e.g. 1.5 times the median of the standard deviations,
                         penalizes outliers more strongly than a normal distribution)
@@ -157,20 +177,15 @@ class ObjectiveFunctionNLME:
         self.covariate_mapping = covariate_mapping
         if covariates is not None:
             assert covariate_mapping is not None, '"covariate_mapping" must be specified if covariates are given'
-            self.n_covariates = covariates.shape[1]
-            self.param_samples_cov = self.param_samples.copy()
+            self.n_covariates_params = n_covariates_params
+            assert self.n_covariates_params >= covariates.shape[1], \
+                'every covariate must have a parameter (can be fixed)'
         else:
-            self.n_covariates = 0
-            self.param_samples_cov = self.param_samples
+            self.n_covariates_params = 0
             self.covariate_mapping = None
 
         # prepare computation of loss
         self.log_n_samples = np.log(self.n_samples)
-
-        # some placeholders
-        self.beta = np.empty(self.param_dim)
-        self.psi_inverse = np.empty((self.param_dim, self.param_dim))
-        self.part_one = np.empty(1)
 
     def update_param_samples(self, param_samples: np.ndarray) -> None:
         """update parameter samples, everything else stays the same"""
@@ -179,70 +194,85 @@ class ObjectiveFunctionNLME:
         self.log_n_samples = np.log(self.n_samples)
         assert n_posterior_params == self.prior_mean.size, 'number of posterior parameters does not match prior'
 
-        if self.n_covariates > 0:
+        if self.n_covariates_params > 0:
             assert self.covariates.shape[0] == self.n_sim, \
                 'number of covariates does not match number of simulations'
             assert self.covariate_mapping is not None, '"covariate_mapping" must be specified if covariates are given'
-            self.param_samples_cov = self.param_samples.copy()
-        else:
-            # if no covariates are given
-            self.param_samples_cov = self.param_samples
+            # todo: check if covariate_mapping is correct
         return
 
-    def _helper_log_sum(self, beta: np.ndarray, psi_inverse: np.ndarray) -> np.ndarray:
+    def _helper_sum_log_expectation(self,
+                                    beta: np.ndarray,
+                                    psi_inverse: np.ndarray,
+                                    beta_transformed: Optional[np.ndarray] = None,
+                                    psi_inverse_transformed: Optional[np.ndarray] = None
+                                    ) -> np.ndarray:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
-        expectation_approx = compute_log_sum(
+        log_integrand = compute_log_integrand(
             n_sim=self.n_sim,
             n_samples=self.n_samples,
             log_param_samples=self.param_samples,
-            log_param_samples_cov=self.param_samples_cov,  # param_samples_cov = param_samples if no covariates
             beta=beta,  # beta is the mean of the population distribution
             psi_inverse=psi_inverse,  # psi_inverse is the inverse covariance of the population distribution
+            beta_transformed=beta_transformed,  # beta but with covariates, hence changing for every data point
+            psi_inverse_transformed=psi_inverse_transformed,  # psi_inverse but with covariates, hence changing
             prior_mean=self.prior_mean,  # (only really needed for gaussian prior)
             prior_cov_inverse=self.prior_cov_inverse,  # None if uniform prior
             huber_loss_delta=self.huber_loss_delta  # optional, only needed for huber loss
         )
 
-        # log-sum-exp, computes the Monte Carlo approximation of the expectation value
-        log_sum_exp = logsumexp(expectation_approx, axis=1)  # more stable
+        # log-sum-exp, computes the log of the Monte Carlo approximation of the expectation
+        # logsumexp is a stable implementation of log(sum(exp(x)))
+        log_sum = logsumexp(log_integrand, axis=1)
 
-        # take sum again over cells/individuals
-        expectation_log_sum = np.sum(log_sum_exp)
-        return expectation_log_sum
+        # take sum again over cells/individuals, for each approximation of the expectation subtract log(n_samples)
+        sum_log_expectation = np.sum(log_sum) - self.n_sim * self.log_n_samples
+        return sum_log_expectation
 
     # define objective function to minimize parameters
     def __call__(self, vector_params: np.ndarray) -> float:
-        # get parameter vectors
-        # vector_params = (beta, psi_inverse_vector, covariates_params)
-        # covariates_params might be empty
-        beta = vector_params[:self.param_dim]
-        if self.n_covariates == 0:
-            psi_inverse_vector = vector_params[self.param_dim:]
-            covariates_params = []
-        else:
-            psi_inverse_vector = vector_params[self.param_dim:-self.n_covariates]
-            covariates_params = vector_params[-self.n_covariates:]
-        psi_inverse = self.get_inverse_covariance(psi_inverse_vector)
+        # build mean, covariance matrix and vector of parameters for covariates
+        beta, psi_inverse, psi_inverse_vector, covariates_params = self.get_params(vector_params=vector_params)
 
         # include covariates
-        if self.n_covariates > 0:
-            # if no covariates are given, param_samples_cov = param_samples
-            self.param_samples_cov = self.covariate_mapping(param_samples=self.param_samples.copy(),
-                                                            covariates=self.covariates,
-                                                            covariate_params=covariates_params)
+        if self.n_covariates_params > 0:
+            # beta transformed is now a mean depending on the covariates, thus changing for every data point
+            transformed_params = self.covariate_mapping(
+                beta=beta.copy(),
+                psi_inverse=psi_inverse.copy(),
+                covariates=self.covariates,
+                covariate_params=covariates_params)
+            # if mapping returns a tuple, the first entry is beta, the second psi_inverse
+            # if not the mapping only returns beta
+            if isinstance(transformed_params, tuple):
+                beta_transformed, psi_inverse_transformed = transformed_params
+                # compute parts of the loss
+                # now we need to compute the determinant of every psi_inverse for every data point
+                det_term = 0
+                for sim_idx in range(self.n_sim):
+                    det_term += self._log_sqrt_det(psi_inverse_transformed[sim_idx])
+            else:
+                beta_transformed, psi_inverse_transformed = transformed_params, None
+                # compute parts of the loss
+                det_term = self.n_sim * self._log_sqrt_det(psi_inverse)
+        else:
+            beta_transformed, psi_inverse_transformed = None, None
+            # compute parts of the loss
+            det_term = self.n_sim * self._log_sqrt_det(psi_inverse)
 
-        # compute parts of loss
+        # compute the loss
         # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
         # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
-        part_one = self.n_sim * (self._log_sqrt_det(psi_inverse) - self.log_n_samples + self.constant_prior_term)
-        expectation_log_sum = self._helper_log_sum(beta, psi_inverse)
+        part_one = self.n_sim * self.constant_prior_term + det_term
+        expectation_log_sum = self._helper_sum_log_expectation(beta, psi_inverse,
+                                                               beta_transformed, psi_inverse_transformed)
 
         # compute negative log-likelihood
         nll = -(part_one + expectation_log_sum)
 
         # add l1 penalty for correlations
         if self.correlation_penalty is not None:
-            # the first param_dim entries of psi_inverse_vector are the diagonal entries of psi_inverse
+            # the first param_dim entries of psi_inverse_vector are the variances
             nll += self.correlation_penalty * np.sum(np.abs(psi_inverse_vector[self.param_dim:]))
         return nll
 
@@ -255,6 +285,20 @@ class ObjectiveFunctionNLME:
         # but determinant is positive anyhow since matrix is positive definite
         log_s_det = 0.5 * np.linalg.slogdet(matrix).logabsdet
         return log_s_det
+
+    def get_params(self, vector_params: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray]):
+        # get parameter vectors
+        # vector_params = (beta, psi_inverse_vector, covariates_params)
+        # covariates_params might be empty
+        beta = vector_params[:self.param_dim]
+        if self.n_covariates_params == 0:
+            psi_inverse_vector = vector_params[self.param_dim:]
+            covariates_params = None
+        else:
+            psi_inverse_vector = vector_params[self.param_dim:-self.n_covariates_params]
+            covariates_params = vector_params[-self.n_covariates_params:]
+        psi_inverse = self.get_inverse_covariance(psi_inverse_vector)
+        return beta, psi_inverse, psi_inverse_vector, covariates_params
 
     def get_inverse_covariance(self, psi_inverse_vector: np.ndarray) -> np.ndarray:
         if self.covariance_format == 'diag':
@@ -288,3 +332,55 @@ class ObjectiveFunctionNLME:
             psi_inv_lower = lu[perm, :][np.tril_indices(self.param_dim, k=-1)]
             psi_inv_vector = np.concatenate((np.log(d.diagonal()), psi_inv_lower))
         return psi_inv_vector
+
+    def estimate_mc_integration_variance(self, vector_params: np.ndarray) -> (np.ndarray, np.ndarray):
+        """estimate variance of Monte Carlo approximation of the expectation"""
+        # build mean, covariance matrix and vector of parameters for covariates
+        beta, psi_inverse, psi_inverse_vector, covariates_params = self.get_params(vector_params=vector_params)
+
+        # include covariates
+        if self.n_covariates_params > 0:
+            # beta transformed is now a mean depending on the covariates, thus changing for every data point
+            transformed_params = self.covariate_mapping(
+                beta=beta.copy(),
+                psi_inverse=psi_inverse.copy(),
+                covariates=self.covariates,
+                covariate_params=covariates_params)
+            # if mapping returns a tuple, the first entry is beta, the second psi_inverse
+            # if not the mapping only returns beta
+            if isinstance(transformed_params, tuple):
+                beta_transformed, psi_inverse_transformed = transformed_params
+            else:
+                beta_transformed, psi_inverse_transformed = transformed_params, None
+        else:
+            beta_transformed, psi_inverse_transformed = None, None
+
+        # compute parts of loss
+        # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
+        # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
+        log_integrand = compute_log_integrand(
+            n_sim=self.n_sim,
+            n_samples=self.n_samples,
+            log_param_samples=self.param_samples,
+            beta=beta,  # beta is the mean of the population distribution
+            psi_inverse=psi_inverse,  # psi_inverse is the inverse covariance of the population distribution
+            beta_transformed=beta_transformed,  # beta but with covariates, hence changing for every data point
+            psi_inverse_transformed=psi_inverse_transformed,  # psi_inverse but with covariates, hence changing
+            prior_mean=self.prior_mean,  # (only really needed for gaussian prior)
+            prior_cov_inverse=self.prior_cov_inverse,  # None if uniform prior
+            huber_loss_delta=self.huber_loss_delta  # optional, only needed for huber loss
+        )
+        integrand = np.exp(log_integrand)  # sim x samples
+
+        # log-sum-exp, computes the log of the Monte Carlo approximation of the expectation
+        # logsumexp is a stable implementation of log(sum(exp(x)))
+        log_expectation = logsumexp(log_integrand, axis=1) - self.log_n_samples
+        expectation = np.exp(log_expectation)  # expectation per simulation
+
+        # unbiased estimator of variance of Monte Carlo approximation for each simulation
+        var = 1 / (self.n_samples - 1) * np.sum((integrand - expectation[:, np.newaxis]) ** 2, axis=1)  # sim x samples
+        error_estimate = np.sqrt(var) / np.sqrt(self.n_samples)
+        # shift expectation to avoid division by zero
+        expectation[expectation < 0.001] = 0.001  # expectation is always positive and smaller than 1
+        rel_error_estimate = error_estimate / expectation
+        return var, error_estimate, rel_error_estimate

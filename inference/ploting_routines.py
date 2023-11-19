@@ -2,6 +2,7 @@
 # coding: utf-8
 
 from datetime import datetime
+from typing import Optional
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
@@ -9,12 +10,16 @@ from pypesto import visualize, Result
 from scipy.stats import lognorm, entropy
 from scipy.stats import t as t_dist
 
+from inference.inference_functions import ObjectiveFunctionNLME
 
-def visualize_pesto_result(result: Result, use_batch_coloring: bool = True) -> None:
+
+def visualize_pesto_result(result: Result,
+                           use_batch_coloring: bool = True,
+                           obj_fun_amortized: Optional[ObjectiveFunctionNLME] = None) -> None:
     # visualize results of optimization
     if use_batch_coloring:
         # results' id is "batch_id_run_id", so int(s.split('_')[1]) gives us the run_id
-        c_id = np.array([int(s.split('_')[1]) for s in result.optimize_result.as_dataframe()['id']])
+        c_id = np.array([int(s.split('_')[1]) for s in result.optimize_result.id])
         cm_mapper = cm.ScalarMappable(norm=cm.colors.Normalize(vmin=0, vmax=np.max(c_id) + 1), cmap=cm.hsv)
         color_map = cm_mapper.to_rgba(c_id)
     else:
@@ -24,6 +29,27 @@ def visualize_pesto_result(result: Result, use_batch_coloring: bool = True) -> N
     visualize.parameters(result, colors=color_map)
     if result.optimize_result.history[0] is not None and result.optimize_result.history[0].options.trace_record:
         visualize.optimizer_history(result, colors=color_map)
+
+    if obj_fun_amortized is not None:
+        plt.figure(tight_layout=True, figsize=(10, 5))
+        var, error_estimate, rel_error = obj_fun_amortized.estimate_mc_integration_variance(result.optimize_result.x[0])
+
+        #plt.hist(np.sqrt(var), color=color_map[0] if color_map is not None else None)
+        #plt.title('Standard Deviation of Monte Carlo Integration per Individual (best parameters)')
+        #plt.show()
+
+        #plt.hist(error_estimate, color=color_map[0] if color_map is not None else None)
+        #plt.title('Estimated Error of Monte Carlo Integration per Individual (best parameters)')
+        #plt.show()
+
+        plt.hist(rel_error, color=color_map[0] if color_map is not None else None)
+        plt.title('Estimated Relative Error of Monte Carlo Integration per Individual (best parameters)')
+        plt.show()
+
+        # print('Max Approx. Rel. Error of the MC Integration', rel_error.max())
+        # using the maximum error estimate as an approximation for the overall error
+        # we take the product over the expectations and the then log of it (this we want to maximize)
+        # the error of the product is the maximum of the error estimates
     return
 
 
