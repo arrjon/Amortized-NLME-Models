@@ -116,7 +116,7 @@ def euler_maruyama(t0: float, m0: float, delta: float, gamma: float, k: float,
     return np.column_stack((t_points, x))
 
 
-def batch_simulator(param_batch: np.ndarray, n_obs: int, with_noise: bool = True) -> np.ndarray:
+def batch_simulator(param_batch: np.ndarray, n_obs: int = 180, with_noise: bool = True) -> np.ndarray:
     """
     Simulate ODE model
 

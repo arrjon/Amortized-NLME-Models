@@ -127,6 +127,26 @@ def batch_simulator(param_batch: np.ndarray,
     return output_batch
 
 
+def simulate_single_patient(param_batch: np.ndarray,
+                            patient_data: np.ndarray,
+                            full_trajectory: bool = False,
+                            with_noise: bool = False,
+                            convert_to_bf_batch: bool = False) -> np.ndarray:
+    """uses the batch simulator to simulate a single patient"""
+    y, t_measurements, doses_time_points, dos, wt = convert_bf_to_observables(patient_data)
+    if full_trajectory:
+        t_measurements = np.linspace(0, t_measurements[-1], 100)
+
+    y_sim = batch_simulator(param_batch,
+                            t_measurement=t_measurements,
+                            t_doses=doses_time_points,
+                            wt=wt,
+                            dos=dos,
+                            with_noise=with_noise,
+                            convert_to_bf_batch=convert_to_bf_batch)
+    return y_sim
+
+
 def convert_to_bf_format(y: np.ndarray,
                          t_measurements: np.ndarray,
                          doses_time_points: np.ndarray,
@@ -212,19 +232,19 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
     def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> str:
         self.n_obs_per_measure = 4  # time and two measurements + event type (measurement = 0, dosing = 1)
-        self.n_epochs = 750
+        self.n_epochs = 500
         self.summary_dim = self.n_params * 2
 
         # load best
         if load_best:
-            model_idx = 3
-            # amortizer-pharma-split-sequence-summary-Bi-LSTM-7layers-2coupling-spline-750epochs -> 3
+            model_idx = 5
+            # amortizer-pharma-split-sequence-summary-Bi-LSTM-8layers-2coupling-spline-750epochs -> 5
 
         summary_network_type = ['sequence', 'split-sequence']
         bidirectional_LSTM = [True, False]
         n_coupling_layers = [7, 8]
         n_dense_layers_in_coupling = [2, 3]
-        coupling_design = ['affine', 'spline']
+        coupling_design = ['spline']
 
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design, summary_network_type))
