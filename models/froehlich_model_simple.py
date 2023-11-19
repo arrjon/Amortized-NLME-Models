@@ -33,18 +33,19 @@ def ode_analytical_sol(t: np.ndarray, delta: float, gamma: float, k_m0_scale: fl
         with the first row being the value of m at each time point, and the second row being the
         value of p at each time point.
     """
-    if delta == gamma:
-        # the analytical solution is different in this case
+    with np.errstate(over='ignore'):  # some values in exp might be too large, will return inf
+        if delta == gamma:
+            # the analytical solution is different in this case
+            m = np.exp(-delta * (t - t_0))
+            m[t - t_0 < 0] = 0
+            p = k_m0_scale * np.exp(-gamma * (t - t_0)) * (t - t_0)
+            p[t - t_0 < 0] = 0
+            return np.row_stack((m, p))
+
         m = np.exp(-delta * (t - t_0))
         m[t - t_0 < 0] = 0
-        p = k_m0_scale * np.exp(-gamma * (t - t_0)) * (t - t_0)
+        p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
         p[t - t_0 < 0] = 0
-        return np.row_stack((m, p))
-
-    m = np.exp(-delta * (t - t_0))
-    m[t - t_0 < 0] = 0
-    p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
-    p[t - t_0 < 0] = 0
     return np.row_stack((m, p))
 
 
@@ -81,7 +82,7 @@ def add_noise(y: np.ndarray, sigmas: np.ndarray) -> np.ndarray:
 
 
 def batch_simulator(param_batch: np.ndarray,
-                    n_obs: int,
+                    n_obs: int = 180,
                     with_noise: bool = True,
                     exp_func: str = 'exp') -> np.ndarray:
     """

@@ -56,7 +56,7 @@ def prop_noise(y: np.ndarray, error_params: np.ndarray) -> np.ndarray:
     np.ndarray: The noisy trajectories.
     """
     noise = np.random.normal(loc=0, scale=1, size=y.shape)
-    return y + (error_params[0] + error_params[1]*y) * noise
+    return y + (error_params[0] + error_params[1] * y) * noise
 
 
 def batch_simulator(param_batch: np.ndarray,
@@ -134,6 +134,26 @@ def batch_simulator(param_batch: np.ndarray,
     return output_batch
 
 
+def simulate_single_patient(param_batch: np.ndarray,
+                            patient_data: np.ndarray,
+                            full_trajectory: bool = False,
+                            with_noise: bool = False,
+                            convert_to_bf_batch: bool = False
+                            ) -> np.ndarray:
+    """uses the batch simulator to simulate a single patient"""
+    y, t_measurements, doses_time_points, dose_amount = convert_bf_to_observables(patient_data)
+    if full_trajectory:
+        t_measurements = np.linspace(0, t_measurements[-1], 100)
+
+    y_sim = batch_simulator(param_batch,
+                            t_measurements=t_measurements,
+                            t_doses=doses_time_points,
+                            dose_amount=dose_amount,
+                            with_noise=with_noise,
+                            convert_to_bf_batch=convert_to_bf_batch)
+    return y_sim
+
+
 def convert_to_bf_format(y: np.ndarray,
                          t_measurements: np.ndarray,
                          dose_amount: float,
@@ -173,7 +193,7 @@ def convert_bf_to_observables(output: np.ndarray,
     doses = output[np.where(output[:, 2] == 1)]
     dose_amount = np.exp(doses[0, 0])
     doses_time_points = doses[:, 1] * scaling_time
-    return y, t_measurements, dose_amount, doses_time_points
+    return y, t_measurements, doses_time_points, dose_amount
 
 
 class ClaironSmallModel(NlmeBaseAmortizer):
@@ -244,9 +264,12 @@ class ClaironSmallModel(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = 15
-            # amortizer-clairon-normal-sequence-summary-Bi-LSTM-7layers-3coupling-spline-500epochs -> 11
-            # amortizer-clairon-normal-sequence-summary-Bi-LSTM-8layers-3coupling-spline-500epochs -> 15
+            if self.prior_type == 'normal':
+                model_idx = 6
+                # amortizer-clairon-normal-sequence-summary-LSTM-8layers-3coupling-affine-500epochs -> 6
+            else:
+                model_idx = 11
+                # amortizer-clairon-uniform-sequence-summary-Bi-LSTM-7layers-3coupling-spline-500epochs -> 11
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]
@@ -348,7 +371,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
     @staticmethod
     def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
         # convert BayesFlow format to observables
-        y, t_measurements, dose_amount, doses_time_points = convert_bf_to_observables(data)
+        y, t_measurements, doses_time_points, dose_amount = convert_bf_to_observables(data)
         t_measurement_full = np.linspace(0, t_measurements[-1] + 100, 100)
 
         # simulate data

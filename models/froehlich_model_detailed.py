@@ -29,7 +29,7 @@ jl.seval("using SimulatorFroehlich")
 
 # a function which can simulate a batch of parameters or a single parameter set
 def batch_simulator(param_batch: np.ndarray,
-                    n_obs: int,
+                    n_obs: int = 180,
                     with_noise: bool = True,
                     exp_func: str = 'exp') -> np.ndarray:
     """

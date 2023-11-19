@@ -297,28 +297,10 @@ class ObjectiveFunctionNLME:
         else:
             psi_inverse_vector = vector_params[self.param_dim:-self.n_covariates_params]
             covariates_params = vector_params[-self.n_covariates_params:]
-        psi_inverse = self.get_inverse_covariance(psi_inverse_vector)
+        psi_inverse = get_inverse_covariance(psi_inverse_vector,
+                                             covariance_format=self.covariance_format,
+                                             param_dim=self.param_dim)
         return beta, psi_inverse, psi_inverse_vector, covariates_params
-
-    def get_inverse_covariance(self, psi_inverse_vector: np.ndarray) -> np.ndarray:
-        if self.covariance_format == 'diag':
-            # psi = log of diagonal entries since entries must be positive
-            psi_inverse = np.diag(np.exp(psi_inverse_vector))
-        else:
-            # matrix is 'cholesky'
-            # vector to triangular matrix
-            psi_inverse_lower = np.zeros((self.param_dim, self.param_dim))
-            psi_inverse_lower[np.diag_indices(self.param_dim)] = 1
-            psi_inverse_lower[np.tril_indices(self.param_dim, k=-1)] = psi_inverse_vector[self.param_dim:]
-
-            psi_inverse_diag = np.diag(np.exp(psi_inverse_vector[:self.param_dim]))
-            psi_inverse = psi_inverse_lower.dot(psi_inverse_diag).dot(psi_inverse_lower.T)
-        return psi_inverse
-
-    def get_covariance(self, psi_inverse_vector: np.ndarray) -> np.ndarray:
-        inverse_covariance = self.get_inverse_covariance(psi_inverse_vector)
-        psi = np.linalg.inv(inverse_covariance)
-        return psi
 
     def get_inverse_covariance_vector(self, psi: np.ndarray) -> np.ndarray:
         if self.covariance_format == 'diag':
@@ -384,3 +366,31 @@ class ObjectiveFunctionNLME:
         expectation[expectation < 0.001] = 0.001  # expectation is always positive and smaller than 1
         rel_error_estimate = error_estimate / expectation
         return var, error_estimate, rel_error_estimate
+
+
+def get_inverse_covariance(psi_inverse_vector: np.ndarray,
+                           covariance_format: str,
+                           param_dim: int) -> np.ndarray:
+    if covariance_format == 'diag':
+        # psi = log of diagonal entries since entries must be positive
+        psi_inverse = np.diag(np.exp(psi_inverse_vector))
+    else:
+        # matrix is 'cholesky'
+        # vector to triangular matrix
+        psi_inverse_lower = np.zeros((param_dim, param_dim))
+        psi_inverse_lower[np.diag_indices(param_dim)] = 1
+        psi_inverse_lower[np.tril_indices(param_dim, k=-1)] = psi_inverse_vector[param_dim:]
+
+        psi_inverse_diag = np.diag(np.exp(psi_inverse_vector[:param_dim]))
+        psi_inverse = psi_inverse_lower.dot(psi_inverse_diag).dot(psi_inverse_lower.T)
+    return psi_inverse
+
+
+def get_covariance(psi_inverse_vector: np.ndarray,
+                   covariance_format: str,
+                   param_dim: int) -> np.ndarray:
+    inverse_covariance = get_inverse_covariance(psi_inverse_vector,
+                                                covariance_format=covariance_format,
+                                                param_dim=param_dim)
+    psi = np.linalg.inv(inverse_covariance)
+    return psi

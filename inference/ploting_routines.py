@@ -34,17 +34,21 @@ def visualize_pesto_result(result: Result,
         plt.figure(tight_layout=True, figsize=(10, 5))
         var, error_estimate, rel_error = obj_fun_amortized.estimate_mc_integration_variance(result.optimize_result.x[0])
 
-        #plt.hist(np.sqrt(var), color=color_map[0] if color_map is not None else None)
-        #plt.title('Standard Deviation of Monte Carlo Integration per Individual (best parameters)')
-        #plt.show()
+        # plt.hist(np.sqrt(var), color=color_map[0] if color_map is not None else None)
+        # plt.title('Standard Deviation of Monte Carlo Integration per Individual (best parameters)')
+        # plt.show()
 
-        #plt.hist(error_estimate, color=color_map[0] if color_map is not None else None)
-        #plt.title('Estimated Error of Monte Carlo Integration per Individual (best parameters)')
-        #plt.show()
+        # plt.hist(error_estimate, color=color_map[0] if color_map is not None else None)
+        # plt.title('Estimated Error of Monte Carlo Integration per Individual (best parameters)')
+        # plt.show()
 
         plt.hist(rel_error, color=color_map[0] if color_map is not None else None)
         plt.title('Estimated Relative Error of Monte Carlo Integration per Individual (best parameters)')
         plt.show()
+        # detect whether the error estimate is too large
+        if np.median(rel_error) > 0.5:  # todo: rather arbitrary threshold, should be investigated
+            print(f'Warning: The median error estimate is large ({np.median(rel_error)}). '
+                  f'Consider increasing the number of samples.')
 
         # print('Max Approx. Rel. Error of the MC Integration', rel_error.max())
         # using the maximum error estimate as an approximation for the overall error
@@ -54,12 +58,12 @@ def visualize_pesto_result(result: Result,
 
 
 def plot_real_and_estimated(estimated_mean: np.ndarray,
-                           estimated_cov: np.ndarray,
-                           simulator: callable, model_name: str,
-                           data: np.ndarray = None,
-                           n_trajectories: int = 50,
-                           save_fig: str = None,
-                           seed: int = 0) -> None:
+                            estimated_cov: np.ndarray,
+                            simulator: callable, model_name: str,
+                            data: np.ndarray = None,
+                            n_trajectories: int = 50,
+                            save_fig: str = None,
+                            seed: int = 0) -> None:
     """
     Plots real and estimated trajectories in two subplots next to each other.
     """
