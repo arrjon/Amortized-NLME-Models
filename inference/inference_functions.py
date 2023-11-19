@@ -16,10 +16,13 @@ def run_population_optimization(
         individual_model: NlmeBaseAmortizer,
         data: Union[np.ndarray, list[np.ndarray]],
         param_names: list,
-        objective_function: Union[ObjectiveFunctionNLME, list[ObjectiveFunctionNLME]],
+        cov_type: str = 'diag',
         n_multi_starts: int = 1,
         n_samples_opt: int = 100,
         param_bounds: Optional[np.array] = None,
+        covariates: Optional[np.ndarray] = None,
+        covariate_mapping: Optional[callable] = None,
+        n_covariates_params: int = 0,
         covariates_bounds: Optional[np.ndarray] = None,
         x_fixed_indices: Optional[np.ndarray] = None,
         x_fixed_vals: Optional[np.ndarray] = None,
@@ -29,9 +32,23 @@ def run_population_optimization(
         pesto_multi_processes: int = 1,
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         result: Optional[Result] = None
-):
+) -> (Result, ObjectiveFunctionNLME):
+    # create objective function
+    obj_fun_amortized = ObjectiveFunctionNLME(model_name=individual_model.name,
+                                              prior_mean=individual_model.prior_mean,
+                                              prior_std=individual_model.prior_std,
+                                              covariance_format=cov_type,
+                                              covariates=covariates,
+                                              covariate_mapping=covariate_mapping,
+                                              n_covariates_params=n_covariates_params,
+                                              prior_type=individual_model.prior_type,
+                                              # for uniform prior
+                                              prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
+                                                                                                    'prior_bounds') else None,
+                                              )
     # set up pyPesto
     param_names_opt = create_param_names_opt(dim=individual_model.amortizer.latent_dim,
+                                             cov_type=cov_type,
                                              param_names=param_names)
     # create bounds if none are given
     if param_bounds is None:
@@ -42,12 +59,7 @@ def run_population_optimization(
             prior_type=individual_model.prior_type,
             prior_bounds=individual_model.prior_bounds if hasattr(individual_model, 'prior_bounds') else None,
             covariates_bounds=covariates_bounds,  # only used if covariates are used
-            covariance_format=objective_function.covariance_format)
-    if x_fixed_indices is not None and x_fixed_vals is not None:
-        too_small_idx = x_fixed_vals < param_bounds[0, x_fixed_indices]
-        x_fixed_vals[too_small_idx] = param_bounds[0, x_fixed_indices][too_small_idx]
-        too_large_idx = x_fixed_vals > param_bounds[1, x_fixed_indices]
-        x_fixed_vals[too_large_idx] = param_bounds[1, x_fixed_indices][too_large_idx]
+            covariance_format=cov_type)
 
     # save optimizer trace
     history_options = HistoryOptions(trace_record=trace_record)
@@ -79,9 +91,9 @@ def run_population_optimization(
         # create objective function with samples
         param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
         # update objective function with samples
-        objective_function.update_param_samples(param_samples=param_samples)
+        obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
-        pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
+        pesto_objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
 
         # create pypesto problem
         pesto_problem = Problem(objective=pesto_objective,
@@ -92,10 +104,10 @@ def run_population_optimization(
                                 x_fixed_vals=x_fixed_vals)
         if verbose and run_idx == 0:
             pesto_problem.print_parameter_summary()
-            df = pd.DataFrame(pesto_problem.x_fixed_vals,
-                              index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],
-                              columns=['fixed value'])
-            print(df)
+            df_fixed = pd.DataFrame(pesto_problem.x_fixed_vals,
+                                    index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],
+                                    columns=['fixed value'])
+            print(df_fixed)
 
         # Run optimizations for different starting values
         result = optimize.minimize(
@@ -113,23 +125,17 @@ def run_population_optimization(
     # make final objective value comparable across samples
     # always use more samples for final evaluation
     # MC integration error reduces with sqrt(1/n_samples)
-    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt * 100)
+    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt * 10)
     # update objective function with samples
-    objective_function.update_param_samples(param_samples=param_samples)
-
-    # wrap finite difference around objective function
-    pesto_objective = FD(obj=Objective(fun=objective_function, x_names=param_names_opt))
-    pesto_problem = Problem(objective=pesto_objective,
-                            lb=param_bounds[0, :], ub=param_bounds[1, :],
-                            x_names=param_names_opt,
-                            x_scales=['log'] * len(param_names_opt),
-                            x_fixed_indices=x_fixed_indices,
-                            x_fixed_vals=x_fixed_vals)
-    setattr(result, "problem", pesto_problem)
+    obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
     result_list = result.optimize_result.list.copy()
     for res in result_list:
-        res['fval'] = result.problem.objective(res['x'][result.problem.x_free_indices])
+        res['fval'] = obj_fun_amortized(res['x'])
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
-    return result
+
+    # update objective function with fewer samples (for faster evaluation, e.g. profiling)
+    param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
+    obj_fun_amortized.update_param_samples(param_samples=param_samples)
+    return result, obj_fun_amortized

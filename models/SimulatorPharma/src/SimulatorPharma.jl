@@ -4,8 +4,11 @@ using SciMLBase
 using DifferentialEquations
 using ModelingToolkit
 
-@parameters t, θ_1, θ_2_η_1, θ_4_η_3, θ_5, θ_6_η_2, θ_7, θ_8, θ_10, η_4, wt
-@variables A1(t), A2(t), A3(t), A4(t), A5(t)
+# Create parameter and variable symbolics
+@parameters θ_1, θ_2_η_1, θ_4_η_3, θ_5, θ_6_η_2, θ_7, θ_8, θ_10, η_4, wt
+@variables t, A1(t), A2(t), A3(t), A4(t), A5(t)
+
+# From `ModelingToolkit`: differential operator
 D = Differential(t)
 
 ASCL = (wt / 70) ^ 0.75
@@ -31,11 +34,13 @@ eqs = [
     D(A5) ~ Q_25 / V_2 * A2 - Q_25 / V_5 * A5
 ]
 
-@named sys = ODESystem(eqs, t,
-    [A1, A2, A3, A4, A5],
-    [θ_1, θ_2_η_1, θ_4_η_3, θ_5, θ_6_η_2, θ_7, θ_8, θ_10, η_4, wt])
-sys = structural_simplify(sys)
+# Set of variables defined at `@variables`
+vars = [A1, A2, A3, A4, A5]::Vector{Num}
+# Set of parameters defined at `@parameters`
+pars = [θ_1, θ_2_η_1, θ_4_η_3, θ_5, θ_6_η_2, θ_7, θ_8, θ_10, η_4, wt]::Vector{Num}
 
+@named sys = ODESystem(eqs, t, vars, pars)
+sys = structural_simplify(sys)
 
 function simulatePharma(
     parameters::Vector{Float64},
@@ -45,7 +50,7 @@ function simulatePharma(
     t_measurement::Vector{Float64}
     )
 
-    p_var = [
+    parmap = [
         θ_1 => parameters[1],
         θ_2_η_1 => parameters[2],
         θ_4_η_3 => parameters[3],
@@ -66,17 +71,29 @@ function simulatePharma(
         A5 => 0.0
     ]::Vector{Pair{Num, Float64}}
 
+    # At the time of `dosetimes` we'll add `DOS` to the first state
     affect!(integrator) = integrator.u[1] += DOS
     cb = PresetTimeCallback(dosetimes, affect!)
+
+    # Set timespan to solve the ODE
     tspan = (0, t_measurement[end])
 
-    prob = ODEProblem(sys, x0, tspan, p_var)
-    sol = solve(prob, Tsit5(), tstops=t_measurement, callback=cb; verbose=false)
+    # Define ODE problem
+    problem = ODEProblem(sys, x0, tspan, parmap)  # using jac is a bit slower
+    sol = solve(
+        problem,
+        alg=Rodas5P(),  #Tsit5 is a bit slower than Rodas5P
+        tstops=dosetimes,
+        saveat=t_measurement,
+        callback=cb;
+        verbose=false
+    )
 
-    observed = hcat(sol(t_measurement).u...)[2:3, :]
-    return observed
+    # Return observed
+    return hcat(sol(t_measurement).u...)[2:3, :]
 end
 
+# Export function
 export simulatePharma
 
 end # module SimulatorPharma

@@ -23,6 +23,7 @@ from models.froehlich_model_simple import load_single_cell_data, load_multi_expe
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorFroehlich')
 jlPkg.activate(env)
+# jlPkg.activate('models/SimulatorFroehlich')
 jl.seval("using SimulatorFroehlich")
 
 
@@ -86,7 +87,6 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         prior_diag = np.array([5., 5., 2., 2., 2., 2., 2., 5., 2., 5., 2.])
         prior_diag[3] = 1  # otherwise too many samples lead to overflow
         prior_cov = np.diag(prior_diag)
-        self.prior_type = 'normal'
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -94,6 +94,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
+                         prior_type='normal',
                          max_n_obs=180)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
@@ -107,7 +108,8 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
         # load best
         if load_best:
-            model_idx = -1
+            model_idx = 15
+            # amortizer-detailed-fro-sequence-summary-Bi-LSTM-8layers-3coupling-spline-750epochs -> 14
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]
@@ -117,8 +119,6 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design, summary_network_type))
-        # also test on configuration with a transformer as summary network
-        combinations.append((False, 7, 2, 'affine', 'transformer'))
 
         if model_idx >= len(combinations) or model_idx < 0:
             model_name = f'amortizer-detailed-fro' \

@@ -32,7 +32,7 @@ from bayesflow import diagnostics
 
 Define a function for simulation of data. Takes in a batch of parameters in the form
 (#simulations, #parameters) and returns a batch of data in the form (#simulations, #data).
-```
+
 This function should be implemented in an efficient way (e.g. using [numba](https://numba.pydata.org) or import a julia function).
 ```
 def batch_simulator(param_samples: np.ndarray, other_args) -> np.ndarray:
@@ -51,12 +51,13 @@ class myModel(NlmeBaseAmortizer):
         # define prior values (for log-parameters)
         prior_mean = np.array([0, 0])
         prior_cov = np.diag([1, 1])
-        self.prior_type = 'normal'
+        prior_type = 'normal'
 
         super().__init__(name=name,
                          param_names=param_names,
                          prior_mean=prior_mean,
-                         prior_cov=prior_cov)
+                         prior_cov=prior_cov
+                         prior_type=prior_type)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
                                                                   other_args=other_args))

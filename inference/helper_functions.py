@@ -5,7 +5,6 @@ import itertools
 from typing import Optional, Union
 import numpy as np
 import pandas as pd
-from bayesflow.amortizers import AmortizedPosterior
 from heatmap import corrplot
 
 from inference.base_nlme_model import NlmeBaseAmortizer
@@ -18,7 +17,8 @@ def create_boundaries_from_prior(
         prior_bounds: Optional[np.ndarray] = None,
         covariates_bounds: Optional[np.ndarray] = None,
         boundary_width_from_prior: float = 3,
-        covariance_format: str = 'diag') -> np.ndarray:
+        covariance_format: str = 'diag',
+        minimal_variance_fixed_params: float = 0.001) -> np.ndarray:
     """Create boundaries for optimization problem from prior mean and standard deviation."""
     if prior_type == 'uniform':
         assert prior_bounds is not None, 'prior_bounds must be given for uniform prior'
@@ -32,12 +32,17 @@ def create_boundaries_from_prior(
     # add boundaries for variance parameters (log-inverse-transformed)
     max_std = np.max(boundary_width_from_prior * prior_std)
     mean_std = np.mean(prior_std)
-    lb_var = np.log(1. / mean_std) - max_std
-    ub_var = np.log(1. / mean_std) + max_std
+    lb_var = -np.log(mean_std) - max_std
+    ub_var = -np.log(mean_std) + max_std
+
+    # make sure that variance is not too small for fixed parameters
+    # otherwise the optimization problem becomes ill-conditioned
+    minimal_var_inv = -np.log(minimal_variance_fixed_params)
+    ub_var = min(ub_var, minimal_var_inv)
 
     # concatenate mean and variance boundaries
-    lower_bound = np.concatenate((lb_means, np.ones_like(lb_means)*lb_var))
-    upper_bound = np.concatenate((ub_means, np.ones_like(ub_means)*ub_var))
+    lower_bound = np.concatenate((lb_means, np.ones_like(lb_means) * lb_var))
+    upper_bound = np.concatenate((ub_means, np.ones_like(ub_means) * ub_var))
 
     if covariance_format == 'cholesky':
         # add lower triangular part of covariance matrix
@@ -55,6 +60,7 @@ def create_boundaries_from_prior(
 
 
 def create_param_names_opt(dim: int,
+                           cov_type: str,
                            param_names: list,
                            ):
     # create parameter names for optimization problem
@@ -64,8 +70,8 @@ def create_param_names_opt(dim: int,
             param_names_opt.append(name)
         elif i < 2 * dim:
             # only change variance params
-            param_names_opt.append('$\log$ (' + name + ')^{-1}')
-        elif i < 2 * dim + dim * (dim - 1) // 2:
+            param_names_opt.append('$-\log$ (' + name + ')')
+        elif i < 2 * dim + dim * (dim - 1) // 2 and cov_type == 'cholesky':
             # only change correlation params
             param_names_opt.append('inv_' + name)
         else:
@@ -112,11 +118,9 @@ def get_high_correlation_pairs(corr_df: pd.DataFrame,
 
     # find indices corresponding to pairs with high correlations
     high_corr_pairs_index = []
-    # high_corr_pairs_names = []
     for x, y in high_corr_pairs.index:
         name = f'corr_{x}_{y}'
         high_corr_pairs_index += [p_i for p_i, p_name in enumerate(mixed_effect_params_names) if name == p_name]
-        # high_corr_pairs_names += [p_name for p_i, p_name in enumerate(mixed_effect_params_names) if name == p_name]
     return high_corr_pairs_index
 
 
@@ -157,7 +161,7 @@ def create_fixed_params(fix_names: list, fixed_values: list,
             # variance parameters are log-inverse-transformed
             if fixed_values[n_i] == 0:
                 # if variance is zero, set to lower bound (or upper bound of log-inverse-transformed)
-                temp_val = np.Inf
+                temp_val = -np.log(0.001)
             else:
                 temp_val = np.log(1 / fixed_values[n_i])
         else:
@@ -177,25 +181,27 @@ def create_fixed_params(fix_names: list, fixed_values: list,
     return fixed_indices, fixed_values_out
 
 
-def compute_error_estimate(results_transformed: np.ndarray,
-                           true_pop_parameters: np.ndarray,
+def compute_error_estimate(results: np.ndarray,
+                           true_parameters: np.ndarray,
                            relative_error: bool = False,
-                           epsilon: float = 0.0001,
-                           small_model: bool = False) -> np.ndarray:
-    if relative_error:
-        rel_error = np.mean((results_transformed - true_pop_parameters) ** 2 / (np.abs(true_pop_parameters) + epsilon),
-                            axis=1)
-    else:
-        rel_error = np.mean((results_transformed - true_pop_parameters) ** 2, axis=1)
-    # handle the bimodal distributions, both modes are equally acceptable
-    if small_model:
-        other_mode = true_pop_parameters.copy()
-        other_mode[[0, 1, 6, 7]] = other_mode[[1, 0, 7, 6]]
-        if relative_error:
-            rel_error_2 = np.mean((results_transformed - other_mode) ** 2 / (np.abs(other_mode) + epsilon),
-                                  axis=1)
-        else:
-            rel_error_2 = np.mean((results_transformed - other_mode) ** 2, axis=1)
-        rel_error = np.minimum(rel_error, rel_error_2)
-    return rel_error
+                           epsilon: float = 0.001,
+                           bi_modal: bool = False) -> np.ndarray:
+    if results.ndim == 1:
+        results = results[np.newaxis, :]
 
+    reference = true_parameters.copy()
+    if relative_error:
+        reference[np.abs(reference) < epsilon] = epsilon
+        error = np.mean((results - reference) ** 2 / reference * +2, axis=1)
+    else:
+        error = np.mean((results - reference) ** 2, axis=1)
+
+    # handle the bimodal distributions, both modes are equally acceptable
+    if bi_modal:
+        reference[[0, 1, 6, 7]] = reference[[1, 0, 7, 6]]  # change mean and variance in simple fröhlich model
+        if relative_error:
+            error_2 = np.mean((results - reference) ** 2 / reference ** 2, axis=1)
+        else:
+            error_2 = np.mean((results - reference) ** 2, axis=1)
+        error = np.minimum(error, error_2)
+    return error
