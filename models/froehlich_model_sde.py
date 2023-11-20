@@ -238,7 +238,7 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
 
     @staticmethod
     def load_synthetic_parameter(n_data: int) -> np.ndarray:
-        true_pop_parameters = pd.read_csv(f'./data/synthetic/sample_pop_parameters_sde_model.csv',
+        true_pop_parameters = pd.read_csv(f'../data/synthetic/sample_pop_parameters_sde_model.csv',
                                           index_col=0, header=0).loc[f'{n_data}'].values
         return true_pop_parameters
 

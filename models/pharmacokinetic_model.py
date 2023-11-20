@@ -285,7 +285,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                                           cov=self.prior_cov / 10,
                                           batch_size=n_data) - 1
             params[:, [0, 3, 5, 6, 7, 8, 9]] = self.prior_mean[[0, 3, 5, 6, 7, 8, 9]] - 1
-            params[:, -1] += 3  # eta_4 is centered around 0
+            params[:, -1] += 1  # eta_4 is centered around 0
             data = batch_simulator(params)
             if return_synthetic_params:
                 return data, params
