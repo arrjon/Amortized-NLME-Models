@@ -362,10 +362,7 @@ class ObjectiveFunctionNLME:
         # unbiased estimator of variance of Monte Carlo approximation for each simulation
         var = 1 / (self.n_samples - 1) * np.sum((integrand - expectation[:, np.newaxis]) ** 2, axis=1)  # sim x samples
         error_estimate = np.sqrt(var) / np.sqrt(self.n_samples)
-        # shift expectation to avoid division by zero
-        expectation[expectation < 0.001] = 0.001  # expectation is always positive and smaller than 1
-        rel_error_estimate = error_estimate / expectation
-        return var, error_estimate, rel_error_estimate
+        return var, error_estimate, expectation
 
 
 def get_inverse_covariance(psi_inverse_vector: np.ndarray,

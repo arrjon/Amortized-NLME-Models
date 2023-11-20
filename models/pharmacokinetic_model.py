@@ -8,7 +8,7 @@ import os
 import pathlib
 from datetime import datetime
 from functools import partial
-from typing import Optional
+from typing import Optional, Union, Tuple
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -19,7 +19,7 @@ from juliacall import Main as jl
 from juliacall import Pkg as jlPkg
 from juliacall import convert as jlconvert
 
-from inference.base_nlme_model import NlmeBaseAmortizer
+from inference.base_nlme_model import NlmeBaseAmortizer, batch_gaussian_prior
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorPharma')
 jlPkg.activate(env)
@@ -275,13 +275,20 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
     def load_data(self,
                   n_data: Optional[int] = None,
-                  synthetic: bool = False) -> list[np.ndarray]:
+                  synthetic: bool = False,
+                  return_synthetic_params: bool = False) -> Union[list[np.ndarray], Tuple[np.ndarray, np.ndarray]]:
         if not synthetic:
             data = load_data(number_data_points=n_data)
         else:
             assert n_data is not None, 'n_data must be given for synthetic data'
-            params = self.prior(n_data)['prior_draws']
+            params = batch_gaussian_prior(mean=self.prior_mean,
+                                          cov=self.prior_cov / 10,
+                                          batch_size=n_data) - 1
+            params[:, [0, 3, 5, 6, 7, 8, 9]] = self.prior_mean[[0, 3, 5, 6, 7, 8, 9]] - 1
+            params[:, -1] += 3  # eta_4 is centered around 0
             data = batch_simulator(params)
+            if return_synthetic_params:
+                return data, params
         return data
 
     def plot_example(self, params: Optional[np.ndarray] = None) -> None:

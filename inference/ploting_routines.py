@@ -7,7 +7,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
 from pypesto import visualize, Result
-from scipy.stats import lognorm, entropy
+from scipy.stats import lognorm, entropy, norm
 from scipy.stats import t as t_dist
 
 from inference.inference_functions import ObjectiveFunctionNLME
@@ -31,24 +31,34 @@ def visualize_pesto_result(result: Result,
         visualize.optimizer_history(result, colors=color_map)
 
     if obj_fun_amortized is not None:
-        plt.figure(tight_layout=True, figsize=(10, 5))
-        var, error_estimate, rel_error = obj_fun_amortized.estimate_mc_integration_variance(result.optimize_result.x[0])
+        var, error_estimate, expectation = obj_fun_amortized.estimate_mc_integration_variance(
+            result.optimize_result.x[0]
+        )
 
-        # plt.hist(np.sqrt(var), color=color_map[0] if color_map is not None else None)
-        # plt.title('Standard Deviation of Monte Carlo Integration per Individual (best parameters)')
-        # plt.show()
+        fig, ax = plt.subplots(1, 3, tight_layout=True, figsize=(10, 5), sharey='all')
+        ax[0].hist(expectation, color=color_map[0] if color_map is not None else None)
+        ax[0].set_title('Estimated Expectation \nper Individual (best parameters)')
+        ax[0].set_xlabel('Expectation')
+        ax[0].set_ylabel('Number of Individuals')
 
-        # plt.hist(error_estimate, color=color_map[0] if color_map is not None else None)
-        # plt.title('Estimated Error of Monte Carlo Integration per Individual (best parameters)')
-        # plt.show()
+        ax[1].hist(error_estimate, color=color_map[0] if color_map is not None else None)
+        ax[1].set_title('Estimated Error of MC')
+        ax[1].set_xlabel('Error')
 
-        plt.hist(rel_error, color=color_map[0] if color_map is not None else None)
-        plt.title('Estimated Relative Error of Monte Carlo Integration per Individual (best parameters)')
+        expectation_cut = expectation.copy()
+        print(np.sum([expectation_cut == 0]), 'number of zeros in expectation')
+        expectation_cut[expectation_cut == 0] = 1e-10
+        rel_error = error_estimate / expectation_cut
+
+        ax[2].hist(rel_error, color=color_map[0] if color_map is not None else None)
+        ax[2].set_title('Estimated Relative Error')
+        ax[2].set_xlabel('Relative Error')
         plt.show()
+
         # detect whether the error estimate is too large
         if np.median(rel_error) > 0.5:  # todo: rather arbitrary threshold, should be investigated
             print(f'Warning: The median error estimate is large ({np.median(rel_error)}). '
-                  f'Consider increasing the number of samples.')
+                  f'Consider increasing the number of samples for the Monte Carlo Integration.')
 
         # print('Max Approx. Rel. Error of the MC Integration', rel_error.max())
         # using the maximum error estimate as an approximation for the overall error
@@ -294,6 +304,83 @@ def plot_estimated_distributions(result_list: list[np.ndarray],
         plt.savefig('plots/synthetic_recovered_log_normal_distributions' + str(datetime.now()) + '.png')
     elif save_fig:
         plt.savefig('plots/real_recovered_log_normal_distributions' + str(datetime.now()) + '.png')
+    plt.show()
+    return
+
+
+def plot_normal_distributions(beta: np.ndarray,
+                              psi: np.ndarray,
+                              title: Optional[str] = None,
+                              param_names_plot: Optional[list[str]] = None,
+                              posterior_samples: Optional[np.ndarray] = None,
+                              lb: Optional[np.ndarray] = None,
+                              ub: Optional[np.ndarray] = None,
+                              max_col: int = 5) -> None:
+    # plot distributions
+    n_cols = min(max_col, beta.size)
+    n_rows = int(np.ceil(beta.size / n_cols))
+    fig, ax = plt.subplots(n_rows, n_cols, tight_layout=True, figsize=(15, 5))
+    axis = ax.flatten()
+
+    # set x limits
+    if lb is None:
+        lb = beta - 3 * np.sqrt(psi.diagonal())
+    else:
+        assert lb.size >= beta.size, 'lb must have at least the same size as beta'
+    if ub is None:
+        ub = beta + 3 * np.sqrt(psi.diagonal())
+    else:
+        assert ub.size >= beta.size, 'ub must have at least the same size as beta'
+
+    for p_id in range(beta.size):
+        # plot normal distribution
+        x = np.linspace(beta[p_id] - 2.58 * np.sqrt(psi.diagonal()[p_id]),
+                        beta[p_id] + 2.58 * np.sqrt(psi.diagonal()[p_id]), 100)
+        axis[p_id].plot(x, norm.pdf(x, loc=beta[p_id], scale=np.sqrt(psi.diagonal()[p_id])),
+                        color='blue')
+
+        if posterior_samples is not None:
+            axis[p_id].hist(posterior_samples[:, :, p_id].flatten(), bins=20, density=True,
+                            label='Posterior Samples')
+
+        axis[p_id].set_xlim((lb[p_id], ub[p_id]))
+        if param_names_plot is not None:
+            axis[p_id].set_xlabel(param_names_plot[p_id])
+
+    if title is not None:
+        axis[n_cols // 2].set_title(title)
+
+    for _ax in axis[beta.size:]:
+        _ax.remove()
+    plt.show()
+    return
+
+
+def plot_histograms(param_samples: np.ndarray,
+                    title: Optional[str] = None,
+                    param_names_plot: Optional[list[str]] = None,
+                    lb: Optional[np.ndarray] = None,
+                    ub: Optional[np.ndarray] = None,
+                    max_col: int = 5) -> None:
+    n_params = param_samples.shape[2]
+    n_cols = min(max_col, n_params)
+    n_rows = int(np.ceil(n_params / n_cols))
+
+    fig, ax = plt.subplots(n_rows, n_cols, tight_layout=True, figsize=(15, 5))
+    axis = ax.flatten()
+
+    for p_id in range(n_params):
+        axis[p_id].hist(param_samples[:, :, p_id].flatten(), bins=20, density=True)
+        axis[p_id].set_xlabel(param_names_plot[p_id])
+
+        if lb is not None and ub is not None:
+            axis[p_id].set_xlim((lb[p_id], ub[p_id]))
+
+    if title is not None:
+        axis[n_cols // 2].set_title(title)
+
+    for _ax in axis[n_params:]:
+        _ax.remove()
     plt.show()
     return
 

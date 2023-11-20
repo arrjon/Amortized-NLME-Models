@@ -5,7 +5,19 @@ import itertools
 from typing import Optional, Union
 import numpy as np
 import pandas as pd
-from heatmap import corrplot
+import matplotlib.pyplot as plt
+
+try:
+    from heatmap import corrplot
+except ImportError:
+    # heatmapz not installed, correlation matrix will be plotted using matplotlib
+    def corrplot(corr_df: pd.DataFrame, size_scale: Optional[int] = None):
+        plt.figure(figsize=(19, 15))
+        plt.matshow(corr_df)
+        cb = plt.colorbar()
+        cb.ax.tick_params(labelsize=14)
+        plt.title('Correlation Matrix', fontsize=16)
+        return
 
 from inference.base_nlme_model import NlmeBaseAmortizer
 
