@@ -177,7 +177,7 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         print(f'Using the model {name}')
 
     def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> str:
-        self.n_epochs = 750
+        self.n_epochs = 500
         self.summary_dim = self.n_params * 2
 
         # load best
