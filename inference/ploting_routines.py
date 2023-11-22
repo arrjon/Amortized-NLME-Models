@@ -6,16 +6,17 @@ from typing import Optional
 import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 from pypesto import visualize, Result
 from scipy.stats import lognorm, entropy, norm
 from scipy.stats import t as t_dist
 
-from inference.inference_functions import ObjectiveFunctionNLME
 
 
 def visualize_pesto_result(result: Result,
                            use_batch_coloring: bool = True,
-                           obj_fun_amortized: Optional[ObjectiveFunctionNLME] = None) -> None:
+                           obj_fun_amortized: Optional = None) -> None:
     # visualize results of optimization
     if use_batch_coloring:
         # results' id is "batch_id_run_id", so int(s.split('_')[1]) gives us the run_id
@@ -414,3 +415,14 @@ def plot_distribution(result_list: list,
         plt.savefig('plots/' + fig_name + '.png')
     plt.show()
     return
+
+
+def corrplot(corr_df: pd.DataFrame, ax: Optional[plt.Axes] = None) -> plt.Axes:
+    if ax is None:
+        f, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(corr_df,
+                cmap=sns.diverging_palette(220, 10, as_cmap=True),
+                vmin=-1.0, vmax=1.0,
+                square=True, ax=ax)
+    ax.set_title('Correlation Matrix', fontsize=16)
+    return ax

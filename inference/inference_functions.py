@@ -93,6 +93,10 @@ def run_population_optimization(
         # update objective function with samples
         obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
+        # sanity check of objective function
+        test = obj_fun_amortized(np.array([1] * len(param_names_opt)))
+        assert isinstance(test, float), f"Objective function should return a scalar, but returned {test}."
+
         pesto_objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
 
         # create pypesto problem

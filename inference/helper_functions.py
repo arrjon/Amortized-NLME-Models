@@ -3,23 +3,12 @@
 
 import itertools
 from typing import Optional, Union
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-
-try:
-    from heatmap import corrplot
-except ImportError:
-    # heatmapz not installed, correlation matrix will be plotted using matplotlib
-    def corrplot(corr_df: pd.DataFrame, size_scale: Optional[int] = None):
-        plt.figure(figsize=(19, 15))
-        plt.matshow(corr_df)
-        cb = plt.colorbar()
-        cb.ax.tick_params(labelsize=14)
-        plt.title('Correlation Matrix', fontsize=16)
-        return
 
 from inference.base_nlme_model import NlmeBaseAmortizer
+from inference.ploting_routines import corrplot
 
 
 def create_boundaries_from_prior(
@@ -148,7 +137,8 @@ def analyse_correlation_in_posterior(model: NlmeBaseAmortizer,
     median_df = pd.DataFrame(param_median, columns=model.param_names)
     corr_df = median_df.corr()
 
-    corrplot(corr_df, size_scale=300)
+    ax = corrplot(corr_df)
+    plt.show()
     high_corr_pairs_index = get_high_correlation_pairs(corr_df=corr_df,
                                                        mixed_effect_params_names=mixed_effect_params_names,
                                                        threshold=threshold_corr)
