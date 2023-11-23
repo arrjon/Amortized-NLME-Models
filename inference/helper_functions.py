@@ -3,11 +3,12 @@
 
 import itertools
 from typing import Optional, Union
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from heatmap import corrplot
 
 from inference.base_nlme_model import NlmeBaseAmortizer
+from inference.ploting_routines import corrplot
 
 
 def create_boundaries_from_prior(
@@ -136,7 +137,8 @@ def analyse_correlation_in_posterior(model: NlmeBaseAmortizer,
     median_df = pd.DataFrame(param_median, columns=model.param_names)
     corr_df = median_df.corr()
 
-    corrplot(corr_df, size_scale=300)
+    ax = corrplot(corr_df)
+    plt.show()
     high_corr_pairs_index = get_high_correlation_pairs(corr_df=corr_df,
                                                        mixed_effect_params_names=mixed_effect_params_names,
                                                        threshold=threshold_corr)
@@ -184,24 +186,45 @@ def create_fixed_params(fix_names: list, fixed_values: list,
 def compute_error_estimate(results: np.ndarray,
                            true_parameters: np.ndarray,
                            relative_error: bool = False,
-                           epsilon: float = 0.001,
                            bi_modal: bool = False) -> np.ndarray:
     if results.ndim == 1:
         results = results[np.newaxis, :]
 
     reference = true_parameters.copy()
-    if relative_error:
-        reference[np.abs(reference) < epsilon] = epsilon
-        error = np.mean((results - reference) ** 2 / reference * +2, axis=1)
-    else:
-        error = np.mean((results - reference) ** 2, axis=1)
+    temp_results = results.copy()
+    assert true_parameters.size == results.shape[1], 'true_parameters and results must have the same size'
 
-    # handle the bimodal distributions, both modes are equally acceptable
     if bi_modal:
-        reference[[0, 1, 6, 7]] = reference[[1, 0, 7, 6]]  # change mean and variance in simple fröhlich model
-        if relative_error:
-            error_2 = np.mean((results - reference) ** 2 / reference ** 2, axis=1)
-        else:
-            error_2 = np.mean((results - reference) ** 2, axis=1)
-        error = np.minimum(error, error_2)
+        # handle the bimodal distributions, both modes are equally acceptable
+        # check which mode is in the reference
+        first_param_larger = reference[0] > reference[1]
+        for r_i, res in enumerate(temp_results):
+            if (res[0] > res[1]) != first_param_larger:
+                # switch modes
+                temp_results[r_i, [0, 1, 6, 7]] = temp_results[r_i, [1, 0, 7, 6]]
+
+    if relative_error:  # error per run
+        error = np.mean((temp_results - reference) ** 2 / (reference ** 2), axis=1)
+    else:
+        error = np.mean((temp_results - reference) ** 2, axis=1)
     return error
+
+
+def compute_variance_estimate(results: np.ndarray,
+                              bi_modal: bool = False) -> np.ndarray:
+    assert results.ndim == 2, 'results must be 2D array'
+
+    reference = results.mean(axis=0)
+    temp_results = results.copy()
+
+    if bi_modal:
+        # handle the bimodal distributions, both modes are equally acceptable
+        # check which mode is in the reference
+        first_param_larger = reference[0] > reference[1]
+        for r_i, res in enumerate(temp_results):
+            if (res[0] > res[1]) != first_param_larger:
+                # switch modes
+                temp_results[r_i, [0, 1, 6, 7]] = temp_results[r_i, [1, 0, 7, 6]]
+
+    var = np.mean((results - reference) ** 2)
+    return var

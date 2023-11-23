@@ -26,8 +26,8 @@ class ObjectiveFunctionEmpiricalBayes:
 
         # precompute some values
         self.inv_pop_cov = np.linalg.inv(pop_cov)
-        self.precompute_mvn = -0.5 * (self.pop_mean.size * np.log(2 * np.pi) +
-                                      np.linalg.slogdet(self.pop_cov).logabsdet)
+        _, logabsdet = np.linalg.slogdet(self.pop_cov)
+        self.precompute_mvn = -0.5 * (self.pop_mean.size * np.log(2 * np.pi) + logabsdet)
         self.noise_type = noise_type
 
     def __call__(self, individual_params: np.ndarray, sim_data: Optional[np.ndarray] = None) -> float:

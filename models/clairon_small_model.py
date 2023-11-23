@@ -308,15 +308,18 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                   n_data: Optional[int] = None,
                   load_covariates: bool = False,
                   synthetic: bool = False,
+                  return_synthetic_params: bool = False,
                   seed: int = 42) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         if synthetic:
             assert isinstance(n_data, int)
             np.random.seed(seed)
             params = batch_gaussian_prior(mean=self.prior_mean,
-                                          cov=self.prior_cov / 2,
-                                          batch_size=n_data) - 1
-            params[:, -2:] = self.prior_mean[-2:] - 1
+                                          cov=self.prior_cov / 10,
+                                          batch_size=n_data) - 3
+            params[:, -2:] = self.prior_mean[-2:] - 2
             patients_data = batch_simulator(param_batch=params)
+            if return_synthetic_params:
+                return patients_data, params
             return patients_data
 
         df_dosages = pd.read_csv("../data/clairon/bf_data_dosages.csv")
