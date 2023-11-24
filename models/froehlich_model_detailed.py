@@ -23,7 +23,6 @@ from models.froehlich_model_simple import load_single_cell_data, load_multi_expe
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorFroehlich')
 jlPkg.activate(env)
-# jlPkg.activate('models/SimulatorFroehlich')
 jl.seval("using SimulatorFroehlich")
 
 
@@ -103,13 +102,13 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         print(f'Using the model {name}')
 
     def load_amortizer_configuration(self, model_idx: int = -1, load_best: bool = False) -> str:
-        self.n_epochs = 750
+        self.n_epochs = 500
         self.summary_dim = self.n_params * 2
 
         # load best
         if load_best:
-            model_idx = 15
-            # amortizer-detailed-fro-sequence-summary-Bi-LSTM-8layers-3coupling-spline-750epochs -> 14
+            model_idx = 9
+            # amortizer-detailed-fro-sequence-summary-Bi-LSTM-7layers-2coupling-spline-500epochs -> 9
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]

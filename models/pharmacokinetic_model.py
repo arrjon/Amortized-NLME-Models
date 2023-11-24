@@ -23,7 +23,6 @@ from inference.base_nlme_model import NlmeBaseAmortizer, batch_gaussian_prior
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorPharma')
 jlPkg.activate(env)
-# jlPkg.activate("models/SimulatorPharma")
 jl.seval("using SimulatorPharma")
 
 

@@ -41,6 +41,11 @@ function simulateLargeModel(
     gamma::Float64,
     offset::Float64
 )
+    if t_0 >= 30
+        # no simulation needed
+        return fill(log(offset), 180)
+    end
+
     x0 = [
         m => 1.0,
         e => e0_m0,
@@ -76,9 +81,9 @@ function simulateLargeModel(
 
     # apply measurement function
     p = hcat(sol(t_eval).u...)[4, :] .+ offset
-    y = log.(p)
-
-    return y
+    # make sure that p + offset is not 0
+    p[p.<1e-12] .= 1e-12
+    return log.(p)
 end
 
 export simulateLargeModel

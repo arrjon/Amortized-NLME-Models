@@ -3,8 +3,73 @@
 
 from typing import Optional
 import numpy as np
+from numba import njit, prange
 from scipy.linalg import ldl as ldl_decomposition
 from scipy.special import logsumexp
+
+
+@njit(parallel=True)
+def compute_log_integrand_njit(n_sim: int,
+                               n_samples: int,
+                               log_param_samples: np.ndarray,
+                               beta: np.ndarray,  # beta is the mean of the population distribution
+                               psi_inverse: np.ndarray,  # psi_inverse is the inverse covariance of the population
+                               prior_mean: np.ndarray = None,  # (only really needed for gaussian prior)
+                               prior_cov_inverse: Optional[np.ndarray] = None,  # None if uniform prior
+                               huber_loss_delta: Optional[float] = None
+                               # 1.5 times the median of the standard deviations
+                               ) -> np.ndarray:
+    """
+        compute log of integrand for Monte Carlo approximation of the expectation
+        function is vectorized over simulations and samples ( using numba)
+    """
+    expectation_approx = np.zeros((n_sim, n_samples))
+
+    # for the huber loss we need the cholesky decomposition of psi_inverse
+    cholesky_psi = None
+    if huber_loss_delta is not None and psi_inverse.ndim == 2:
+        cholesky_psi = np.linalg.cholesky(psi_inverse)
+
+    for sim_id in prange(n_sim):
+
+        if huber_loss_delta is not None and psi_inverse.ndim == 3:
+            # psi_inverse might change for every data point
+            cholesky_psi = np.linalg.cholesky(psi_inverse[sim_id])
+
+        for sample_id in prange(n_samples):
+            if beta.ndim == 1:
+                dif = log_param_samples[sim_id, sample_id] - beta
+            else:
+                # beta might change for every data point
+                dif = log_param_samples[sim_id, sample_id] - beta[sim_id]
+
+            # the prior mean does not change for every data point
+            dif_prior = log_param_samples[sim_id, sample_id] - prior_mean
+
+            if huber_loss_delta is None:
+                # compute quadratic loss
+                # psi_inverse can be either the inverse covariance or the transformed inverse covariance
+                if psi_inverse.ndim == 2:
+                    # quadratic loss for every data point individually
+                    temp_psi = 0.5 * dif.T.dot(psi_inverse).dot(dif)
+                else:
+                    # if psi_inverse is the transformed inverse covariance,
+                    # it changes for every data point
+                    temp_psi = 0.5 * dif.T.dot(psi_inverse[sim_id]).dot(dif)
+            else:
+                dif_psi_norm = np.linalg.norm(dif.T.dot(cholesky_psi))
+                if np.abs(dif_psi_norm) <= huber_loss_delta:
+                    temp_psi = 0.5 * dif_psi_norm ** 2
+                else:
+                    temp_psi = huber_loss_delta * (np.abs(dif_psi_norm) - 0.5 * huber_loss_delta)
+
+            if prior_cov_inverse is not None:  # gaussian prior
+                temp_sigma = 0.5 * dif_prior.T.dot(prior_cov_inverse).dot(dif_prior)
+                expectation_approx[sim_id, sample_id] = temp_sigma - temp_psi
+            else:
+                # uniform prior
+                expectation_approx[sim_id, sample_id] = -temp_psi
+    return expectation_approx
 
 
 def compute_log_integrand(n_sim: int,
@@ -19,7 +84,7 @@ def compute_log_integrand(n_sim: int,
                           ) -> np.ndarray:
     """
         compute log of integrand for Monte Carlo approximation of the expectation
-        function is vectorized over simulations and samples (faster than using numba)
+        function is vectorized over simulations and samples (faster than using numba for a single simulation)
     """
     log_param_samples_reshaped = log_param_samples.reshape(n_sim * n_samples, log_param_samples.shape[2])
 
@@ -39,7 +104,7 @@ def compute_log_integrand(n_sim: int,
             # it changes for every data point
             temp_psi = np.zeros(n_sim * n_samples)
             for p_i in range(n_sim):
-                start, end = p_i*n_samples, (p_i+1)*n_samples
+                start, end = p_i * n_samples, (p_i + 1) * n_samples
                 temp_psi[start:end] = 0.5 * (dif[start:end].dot(psi_inverse[p_i]) * dif[start:end]).sum(axis=1)
     else:
         # compute huber loss  # todo: does not work with covariates yet
@@ -167,7 +232,7 @@ class ObjectiveFunctionNLME:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
 
         if beta_transformed is None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand(
+            log_integrand = compute_log_integrand_njit(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
@@ -178,7 +243,7 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta  # optional, only needed for huber loss
             )
         elif beta_transformed is not None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand(
+            log_integrand = compute_log_integrand_njit(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
@@ -189,12 +254,12 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta
             )
         else:  # we assume that psi is never None if beta_transformed is not Non
-            log_integrand = compute_log_integrand(
+            log_integrand = compute_log_integrand_njit(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
                 beta=beta_transformed,  # now changes per simulation (and repeated for every sample)
-                psi_inverse=psi_inverse_transformed,   # now changes per simulation (and repeated for every sample)
+                psi_inverse=psi_inverse_transformed,  # now changes per simulation (and repeated for every sample)
                 prior_mean=self.prior_mean,
                 prior_cov_inverse=self.prior_cov_inverse,
                 huber_loss_delta=self.huber_loss_delta
@@ -322,7 +387,7 @@ class ObjectiveFunctionNLME:
         # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
         # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
         if beta_transformed is None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand(
+            log_integrand = compute_log_integrand_njit(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
@@ -333,7 +398,7 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta  # optional, only needed for huber loss
             )
         elif beta_transformed is not None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand(
+            log_integrand = compute_log_integrand_njit(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
@@ -344,7 +409,7 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta
             )
         else:  # we assume that psi is never None if beta_transformed is not Non
-            log_integrand = compute_log_integrand(
+            log_integrand = compute_log_integrand_njit(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,

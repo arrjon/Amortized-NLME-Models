@@ -23,7 +23,6 @@ from inference.base_nlme_model import NlmeBaseAmortizer, configure_input, batch_
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorSmallClairon')
 jlPkg.activate(env)
-# jlPkg.activate("models/SimulatorSmallClairon")
 jl.seval("using SimulatorSmallClairon")
 
 
