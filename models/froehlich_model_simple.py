@@ -267,8 +267,7 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         return ax
 
 
-def load_single_cell_data(file_name: str,
-                          real_data: bool) -> np.ndarray:
+def load_single_cell_data(file_name: str, real_data: bool) -> np.ndarray:
     if real_data:
         # real data
         data = pd.read_excel(f'../data/froehlich_eGFP/{file_name}.xlsx', index_col=0, header=None)
