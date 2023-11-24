@@ -308,16 +308,21 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                   load_covariates: bool = False,
                   synthetic: bool = False,
                   return_synthetic_params: bool = False,
+                  synthetic_fixed_indices: Optional[np.ndarray] = None,
                   seed: int = 0) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         if synthetic:
             assert isinstance(n_data, int)
             np.random.seed(seed)
-            clairon_paper_mean = np.log(np.array([4.5, 12.4, 18.7, 2.7, 0.01, 0.01, 0.2]))
-            # clairon_paper_cov = np.diag(np.array([0.8, 0, 0.5, 0, 0]) ** 2)
-            clairon_paper_cov = np.diag(np.array([0.8, 0.2, 0.5, 0.1, 0.3, 0, 0]) ** 2)  # no fixed parameters
-            params = batch_gaussian_prior(mean=clairon_paper_mean,
-                                          cov=clairon_paper_cov,
+            # mean and variances (if existent) taken from the clairon paper
+            clairon_mean = np.log(np.array([4.5, 12.4, 18.7, 2.7, 0.01, 0.01, 0.2]))
+            clairon_mean[:-2] += 1
+            clairon_cov = np.diag(np.array([0.8, 0.2, 0.5, 0.1, 0.3, 0., 0.]) ** 2)  # no fixed parameters
+            params = batch_gaussian_prior(mean=clairon_mean,
+                                          cov=clairon_cov,
                                           batch_size=n_data)
+            if synthetic_fixed_indices is not None:
+                # fix parameters to test identifiability
+                params[:, synthetic_fixed_indices] = clairon_mean[synthetic_fixed_indices]
             patients_data = batch_simulator(param_batch=params)
             if return_synthetic_params:
                 return patients_data, params

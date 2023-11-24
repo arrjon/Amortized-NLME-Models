@@ -81,7 +81,7 @@ def run_population_optimization(
         pesto_engine = engine.SingleCoreEngine()
 
     if pesto_multi_processes >= n_multi_starts:
-        print("Warning: pesto_multi_processes >= n_multi_starts. All starts use the same sample from the posterior. "
+        print("Warning: pesto_multi_processes >= n_multi_starts. All starts use the same samples from the posterior. "
               "This is not recommended and you should increase 'n_multi_starts'.")
 
     for run_idx in tqdm(range(n_runs), disable=not verbose, desc='Multi-start optimization'):

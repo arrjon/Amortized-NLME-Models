@@ -46,7 +46,6 @@ def visualize_pesto_result(result: Result,
         ax[1].set_xlabel('Error')
 
         expectation_cut = expectation.copy()
-        print(np.sum([expectation_cut == 0]), 'number of zeros in expectation')
         expectation_cut[expectation_cut == 0] = 1e-10
         rel_error = error_estimate / expectation_cut
 
@@ -316,7 +315,8 @@ def plot_normal_distributions(beta: np.ndarray,
                               posterior_samples: Optional[np.ndarray] = None,
                               lb: Optional[np.ndarray] = None,
                               ub: Optional[np.ndarray] = None,
-                              max_col: int = 5) -> None:
+                              max_col: int = 5,
+                              fig_name: Optional[str] = None) -> None:
     # plot distributions
     n_cols = min(max_col, beta.size)
     n_rows = int(np.ceil(beta.size / n_cols))
@@ -382,6 +382,8 @@ def plot_histograms(param_samples: np.ndarray,
 
     for _ax in axis[n_params:]:
         _ax.remove()
+    if fig_name is not None:
+        plt.savefig(fig_name)
     plt.show()
     return
 
