@@ -181,9 +181,10 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
         return
 
     @staticmethod
-    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None,
+                         with_noise: bool = False) -> plt.Axes:
         # simulate data
-        sim_data = batch_simulator(param_batch=params, n_obs=180, with_noise=False)
+        sim_data = batch_simulator(param_batch=params, n_obs=180, with_noise=with_noise)
         t_measurement = np.linspace(start=1 / 6, stop=30, num=180, endpoint=True)
 
         if ax is None:
@@ -202,7 +203,7 @@ class FroehlichModelDetailed(NlmeBaseAmortizer):
 
             # plot simulated data
             ax.fill_between(t_measurement, y_quantiles[0], y_quantiles[1],
-                            alpha=0.2, color='b')
+                            alpha=0.2, color='b', label='95% quantiles')
             ax.plot(t_measurement, y_median, 'b', label='median')
 
         # plot observed data

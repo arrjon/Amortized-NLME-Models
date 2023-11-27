@@ -378,7 +378,8 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         return
 
     @staticmethod
-    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None,
+                         with_noise: bool = False) -> plt.Axes:
         # convert BayesFlow format to observables
         y, t_measurements, doses_time_points, dose_amount = convert_bf_to_observables(data)
         t_measurement_full = np.linspace(0, t_measurements[-1] + 100, 100)
@@ -387,7 +388,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         sim_data = batch_simulator(param_batch=params,
                                    t_measurements=t_measurement_full,
                                    t_doses=doses_time_points,
-                                   with_noise=False,
+                                   with_noise=with_noise,
                                    convert_to_bf_batch=False)
 
         if ax is None:
@@ -404,7 +405,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
 
             # plot simulated data
             ax.fill_between(t_measurement_full, y_quantiles[0], y_quantiles[1],
-                            alpha=0.2, color='orange')
+                            alpha=0.2, color='orange', label='95% quantiles')
             ax.plot(t_measurement_full, y_median, 'b', label='median')
 
         # plot observed data
