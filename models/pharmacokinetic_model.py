@@ -503,7 +503,7 @@ def get_nonmem_data_helper(nonmem_a2: pd.DataFrame, nonmem_a3: pd.DataFrame, obs
     return [obs_a2, pred_a2_nonmem], [obs_a3, pred_a3_nonmem], measurement_time
 
 
-result_file = '../output/results_nonmem/sunitinib_final_init1.SDTABFboot_029.csv'
+result_file = '../Experiments/results_nonmem/sunitinib_final_init1.SDTABFboot_029.csv'
 if os.path.exists(result_file):
     obs_data = load_data()
     results_nonmen = pd.read_csv(result_file,
@@ -515,7 +515,7 @@ if os.path.exists(result_file):
 
 
 def nonmem_best_results(full_param_names):
-    raw_data = pd.read_csv(f'../output/results_nonmem/retries_sunitinib_lognor.csv', delimiter=',',
+    raw_data = pd.read_csv(f'../Experiments/results_nonmem/retries_sunitinib_lognor.csv', delimiter=',',
                            index_col=0, header=0)
     # remove uninformative columns and add missing columns
     raw_data = raw_data[
