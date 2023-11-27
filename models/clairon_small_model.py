@@ -23,7 +23,6 @@ from inference.base_nlme_model import NlmeBaseAmortizer, configure_input, batch_
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorSmallClairon')
 jlPkg.activate(env)
-# jlPkg.activate("models/SimulatorSmallClairon")
 jl.seval("using SimulatorSmallClairon")
 
 
@@ -309,14 +308,21 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                   load_covariates: bool = False,
                   synthetic: bool = False,
                   return_synthetic_params: bool = False,
-                  seed: int = 42) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
+                  synthetic_fixed_indices: Optional[np.ndarray] = None,
+                  seed: int = 0) -> Union[np.ndarray, tuple[np.ndarray, np.ndarray]]:
         if synthetic:
             assert isinstance(n_data, int)
             np.random.seed(seed)
-            params = batch_gaussian_prior(mean=self.prior_mean,
-                                          cov=self.prior_cov / 10,
-                                          batch_size=n_data) - 3
-            params[:, -2:] = self.prior_mean[-2:] - 2
+            # mean and variances (if existent) taken from the clairon paper
+            clairon_mean = np.log(np.array([4.5, 12.4, 18.7, 2.7, 0.01, 0.01, 0.2]))
+            clairon_mean[:-2] += 1
+            clairon_cov = np.diag(np.array([0.8, 0.2, 0.5, 0.1, 0.3, 0., 0.]) ** 2)  # no fixed parameters
+            params = batch_gaussian_prior(mean=clairon_mean,
+                                          cov=clairon_cov,
+                                          batch_size=n_data)
+            if synthetic_fixed_indices is not None:
+                # fix parameters to test identifiability
+                params[:, synthetic_fixed_indices] = clairon_mean[synthetic_fixed_indices]
             patients_data = batch_simulator(param_batch=params)
             if return_synthetic_params:
                 return patients_data, params
@@ -372,7 +378,8 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         return
 
     @staticmethod
-    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None,
+                         with_noise: bool = False) -> plt.Axes:
         # convert BayesFlow format to observables
         y, t_measurements, doses_time_points, dose_amount = convert_bf_to_observables(data)
         t_measurement_full = np.linspace(0, t_measurements[-1] + 100, 100)
@@ -381,7 +388,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         sim_data = batch_simulator(param_batch=params,
                                    t_measurements=t_measurement_full,
                                    t_doses=doses_time_points,
-                                   with_noise=False,
+                                   with_noise=with_noise,
                                    convert_to_bf_batch=False)
 
         if ax is None:
@@ -398,7 +405,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
 
             # plot simulated data
             ax.fill_between(t_measurement_full, y_quantiles[0], y_quantiles[1],
-                            alpha=0.2, color='orange')
+                            alpha=0.2, color='orange', label='95% quantiles')
             ax.plot(t_measurement_full, y_median, 'b', label='median')
 
         # plot observed data

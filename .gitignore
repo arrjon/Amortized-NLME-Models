@@ -159,7 +159,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 /networks/
-/output/results_nonmem/
 /output/
 /data/clairon/
 /data/froehlich_eGFP/
@@ -169,3 +168,6 @@ cython_debug/
 /Experiments/synthetic_results_monolix/fröhlich-detailed/detailed_model_synthetic_results/
 /Experiments/sampling_results/
 /Experiments/synthetic_results_amortized/
+/Experiments/synthetic_results_monolix/
+/Experiments/empirical_bayes_results/
+/Experiments/results_nonmem/

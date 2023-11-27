@@ -13,7 +13,6 @@ from scipy.stats import lognorm, entropy, norm
 from scipy.stats import t as t_dist
 
 
-
 def visualize_pesto_result(result: Result,
                            use_batch_coloring: bool = True,
                            obj_fun_amortized: Optional = None) -> None:
@@ -47,7 +46,6 @@ def visualize_pesto_result(result: Result,
         ax[1].set_xlabel('Error')
 
         expectation_cut = expectation.copy()
-        print(np.sum([expectation_cut == 0]), 'number of zeros in expectation')
         expectation_cut[expectation_cut == 0] = 1e-10
         rel_error = error_estimate / expectation_cut
 
@@ -73,6 +71,7 @@ def plot_real_and_estimated(estimated_mean: np.ndarray,
                             simulator: callable, model_name: str,
                             data: np.ndarray = None,
                             n_trajectories: int = 50,
+                            exp_func: callable = np.exp,
                             save_fig: str = None,
                             seed: int = 0) -> None:
     """
@@ -90,15 +89,17 @@ def plot_real_and_estimated(estimated_mean: np.ndarray,
             raise ValueError('Data must be provided for Froehlich model')
         # plot real synthetic data vs estimated data
         t_points = np.linspace(start=1 / 6, stop=30, num=data.shape[1], endpoint=True)
-        reproduced_data = simulator(reproduced_param)['sim_data']
+        reproduced_data = simulator(reproduced_param)
+        if isinstance(reproduced_data, dict):
+            reproduced_data = reproduced_data['sim_data']
 
         # Plot
         fig, ax = plt.subplots(nrows=1, ncols=2, sharey='all', sharex='all', figsize=(15, 5))  # , dpi=600)
 
         for i in range(data.shape[0]):
-            ax[0].plot(t_points, np.exp(data[i, :]), color='grey', alpha=0.3)
+            ax[0].plot(t_points, exp_func(data[i, :]), color='grey', alpha=0.3)
         for i in range(reproduced_param.shape[0]):
-            ax[1].plot(t_points, np.exp(reproduced_data[i]), color='red', alpha=0.3)
+            ax[1].plot(t_points, exp_func(reproduced_data[i]), color='red', alpha=0.3)
 
         ax[0].set_xlabel('$t\,[h]$')
         ax[1].set_xlabel('$t\,[h]$')
@@ -151,10 +152,10 @@ def plot_real_vs_synthetic(estimated_mean: np.ndarray,
                            n_trajectories: int = 50,
                            estimation_function: callable = np.mean,
                            ylim: tuple[float, float] = None,
-                           save_fig: str = None,
+                           fig_name: Optional[str] = None,
                            seed: int = 0) -> None:
     np.random.seed(seed)
-    # sample from log normal distribution
+    # sample from normal distribution
     reproduced_param = np.random.multivariate_normal(estimated_mean,
                                                      estimated_cov,
                                                      size=n_trajectories)
@@ -165,7 +166,9 @@ def plot_real_vs_synthetic(estimated_mean: np.ndarray,
             raise ValueError('Data must be provided for Froehlich model')
         # plot real synthetic data vs estimated data
         t_points = np.linspace(start=1 / 6, stop=30, num=data.shape[1], endpoint=True)
-        reproduced_data = simulator(reproduced_param)['sim_data']
+        reproduced_data = simulator(reproduced_param)
+        if isinstance(reproduced_data, dict):
+            reproduced_data = reproduced_data['sim_data']
 
         dif = estimation_function(reproduced_data, axis=0) - estimation_function(data, axis=0)
         std = np.std(reproduced_data, axis=0)
@@ -186,8 +189,8 @@ def plot_real_vs_synthetic(estimated_mean: np.ndarray,
         if ylim is not None:
             plt.ylim(ylim)
         plt.tight_layout()
-        if save_fig is not None:
-            plt.savefig(f'plots/{save_fig}_' + str(datetime.now()) + '.png')
+        if fig_name is not None:
+            plt.savefig(fig_name)
         plt.show()
     else:
         raise NotImplementedError('Model not supported')
@@ -200,7 +203,7 @@ def plot_parameter_estimates(result_list: list[np.ndarray],
                              prior_std: np.ndarray = None,
                              true_parameters: np.ndarray = None,
                              run_names: list[str] = None,  # None, if multi-starts are compared
-                             save_fig: bool = False) -> None:
+                             fig_name: Optional[str] = None) -> None:
     # plot parameters
     fig, ax = plt.subplots(figsize=(15, 5))  # , dpi=600)
     parameters_ind = list(range(1, result_list[0].shape[0] + 1))[::-1]
@@ -238,10 +241,8 @@ def plot_parameter_estimates(result_list: list[np.ndarray],
     ax.set_title('Estimated Population Parameters (log-normal distribution)')
     ax.legend(loc=2, bbox_to_anchor=(1, 1))
     fig.tight_layout()
-    if save_fig and true_parameters is not None:
-        plt.savefig('plots/synthetic_estimated_parameters_' + str(datetime.now()) + '.png')
-    elif save_fig:
-        plt.savefig('plots/real_estimated_parameters_' + str(datetime.now()) + '.png')
+    if fig_name is not None:
+        plt.savefig(fig_name)
     plt.show()
     return
 
@@ -252,7 +253,7 @@ def plot_estimated_distributions(result_list: list[np.ndarray],
                                  prior_std: np.ndarray,
                                  true_parameters: np.ndarray = None,
                                  prior_width: float = 1.98,
-                                 save_fig: bool = False) -> None:
+                                 fig_name: Optional[str] = None) -> None:
     # plot posteriors for each parameter individually
     n_params_plot = len(param_names_plot)
     fig, ax = plt.subplots(nrows=1, ncols=n_params_plot, figsize=(15, 5))  # , dpi=600)
@@ -301,10 +302,8 @@ def plot_estimated_distributions(result_list: list[np.ndarray],
 
     plt.legend()
     fig.tight_layout()
-    if save_fig and true_parameters is not None:
-        plt.savefig('plots/synthetic_recovered_log_normal_distributions' + str(datetime.now()) + '.png')
-    elif save_fig:
-        plt.savefig('plots/real_recovered_log_normal_distributions' + str(datetime.now()) + '.png')
+    if fig_name is not None:
+        plt.savefig(fig_name)
     plt.show()
     return
 
@@ -316,7 +315,8 @@ def plot_normal_distributions(beta: np.ndarray,
                               posterior_samples: Optional[np.ndarray] = None,
                               lb: Optional[np.ndarray] = None,
                               ub: Optional[np.ndarray] = None,
-                              max_col: int = 5) -> None:
+                              max_col: int = 5,
+                              fig_name: Optional[str] = None) -> None:
     # plot distributions
     n_cols = min(max_col, beta.size)
     n_rows = int(np.ceil(beta.size / n_cols))
@@ -382,6 +382,8 @@ def plot_histograms(param_samples: np.ndarray,
 
     for _ax in axis[n_params:]:
         _ax.remove()
+    if fig_name is not None:
+        plt.savefig(fig_name)
     plt.show()
     return
 
@@ -391,11 +393,11 @@ def plot_distribution(result_list: list,
                       result_names: list[str],
                       min_x: float,
                       max_x: float,
-                      fig_name: str = None) -> None:
+                      fig_name: Optional[str] = None) -> None:
     # plot distributions for one parameter
     fig = plt.figure(figsize=(15, 5))  # , dpi=600)
 
-    x = np.linspace(min_x, max_x, 100000)
+    x = np.linspace(min_x, max_x, 10000)
 
     for r_idx, result in enumerate(result_list):
         # Set parameters for the log-normal distribution
@@ -412,7 +414,7 @@ def plot_distribution(result_list: list,
     plt.xscale('log')
     fig.tight_layout()
     if fig_name is not None:
-        plt.savefig('plots/' + fig_name + '.png')
+        plt.savefig(fig_name)
     plt.show()
     return
 

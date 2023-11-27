@@ -7,7 +7,7 @@ path = ''  # use local path
 
 # Load the individual model
 # specify which model to use
-model_name = ['fröhlich-simple', 'fröhlich-detailed', 'fröhlich-sde'][0]
+model_name = ['fröhlich-simple', 'fröhlich-detailed', 'fröhlich-sde'][1]
 
 if model_name == 'fröhlich-simple':
     from models.froehlich_model_simple import FroehlichModelSimple, batch_simulator

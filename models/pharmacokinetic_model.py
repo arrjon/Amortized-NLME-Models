@@ -23,7 +23,6 @@ from inference.base_nlme_model import NlmeBaseAmortizer, batch_gaussian_prior
 
 env = os.path.join(pathlib.Path(__file__).parent.resolve(), 'SimulatorPharma')
 jlPkg.activate(env)
-# jlPkg.activate("models/SimulatorPharma")
 jl.seval("using SimulatorPharma")
 
 
@@ -305,7 +304,8 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         return
 
     @staticmethod
-    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
+    def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None,
+                         with_noise: bool = False) -> plt.Axes:
         # convert BayesFlow format to observables
         y, t_measurement, doses_time_points, dos, wt = convert_bf_to_observables(data)
         t_measurement_full = np.linspace(0, t_measurement[-1] + 100, 100)
@@ -316,7 +316,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
                                    t_doses=doses_time_points,
                                    wt=wt,
                                    dos=dos,
-                                   with_noise=False,
+                                   with_noise=with_noise,
                                    convert_to_bf_batch=False)
 
         if ax is None:
@@ -339,11 +339,11 @@ class PharmacokineticModel(NlmeBaseAmortizer):
 
             # plot simulated data
             ax.fill_between(t_measurement_full, y1_quantiles[0], y1_quantiles[1],
-                            alpha=0.2, color='orange')
+                            alpha=0.2, color='orange', label='95% quantiles')
             ax.plot(t_measurement_full, y1_median, 'orange', label='median $A_{2}$')
 
             ax.fill_between(t_measurement_full, y2_quantiles[0], y2_quantiles[1],
-                            alpha=0.2, color='red')
+                            alpha=0.2, color='red', label='95% quantiles')
             ax.plot(t_measurement_full, y2_median, 'red', label='median $A_{3}$')
 
         # plot observed data
@@ -503,7 +503,7 @@ def get_nonmem_data_helper(nonmem_a2: pd.DataFrame, nonmem_a3: pd.DataFrame, obs
     return [obs_a2, pred_a2_nonmem], [obs_a3, pred_a3_nonmem], measurement_time
 
 
-result_file = '../output/results_nonmem/sunitinib_final_init1.SDTABFboot_029.csv'
+result_file = '../Experiments/results_nonmem/sunitinib_final_init1.SDTABFboot_029.csv'
 if os.path.exists(result_file):
     obs_data = load_data()
     results_nonmen = pd.read_csv(result_file,
@@ -515,7 +515,7 @@ if os.path.exists(result_file):
 
 
 def nonmem_best_results(full_param_names):
-    raw_data = pd.read_csv(f'../output/results_nonmem/retries_sunitinib_lognor.csv', delimiter=',',
+    raw_data = pd.read_csv(f'../Experiments/results_nonmem/retries_sunitinib_lognor.csv', delimiter=',',
                            index_col=0, header=0)
     # remove uninformative columns and add missing columns
     raw_data = raw_data[
