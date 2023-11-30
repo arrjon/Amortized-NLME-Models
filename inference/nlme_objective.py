@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 
+from inspect import signature
 from typing import Optional
 import numpy as np
 from numba import njit, prange
@@ -143,6 +144,8 @@ class ObjectiveFunctionNLME:
                  covariates: Optional[np.ndarray] = None,
                  covariate_mapping: Optional[callable] = None,
                  n_covariates_params: int = 0,
+                 joint_model_term: Optional[callable] = None,
+                 n_joint_params: int = 0,
                  correlation_penalty: Optional[float] = None,
                  huber_loss_delta: Optional[float] = None,
                  prior_type: str = 'normal',
@@ -157,6 +160,7 @@ class ObjectiveFunctionNLME:
         :param covariates: numpy array of covariates
         :param covariate_mapping: function that maps parameters, covariates to distributional parameters
         :param n_covariates_params: number of parameters for covariates function
+        :param joint_model_term: additional term used to construct a joint model
         :param correlation_penalty: l1 penalty for correlations
         :param huber_loss_delta: delta for huber loss (e.g. 1.5 times the median of the standard deviations,
                         penalizes outliers more strongly than a normal distribution)
@@ -202,12 +206,43 @@ class ObjectiveFunctionNLME:
             self.n_covariates_params = n_covariates_params
             assert self.n_covariates_params >= covariates.shape[1], \
                 'every covariate must have a parameter (can be fixed)'
+            args = list(signature(covariate_mapping).parameters.keys())
+            assert 'beta' in args, 'to use a joint model the argument "beta" is expected'
+            assert 'psi_inverse' in args, 'to use a joint model the argument "psi_inverse" is expected'
+            assert 'covariates' in args, 'to use a joint model the argument "covariates" is expected'
+            assert 'covariates_params' in args, 'to use a joint model the argument "covariates_params" is expected'
         else:
             self.n_covariates_params = 0
             self.covariate_mapping = None
 
+        # prepare joint model
+        self.joint_model_term = joint_model_term
+        self.n_joint_params = n_joint_params
+        if joint_model_term is not None:
+            args = list(signature(joint_model_term).parameters.keys())
+            assert 'param_samples' in args, 'to use a joint model the argument "param_samples" is expected'
+            assert 'joint_params' in args, 'to use a joint model the argument "joint_params" is expected'
+            assert n_joint_params > 0, 'you need to specify the number of joint model parameters'
+
         # prepare computation of loss
         self.log_n_samples = np.log(self.n_samples)
+
+        # get indices of parameter types (mean, var, correlation etc.) to construct the right parameter vector
+        self.beta_index = range(0, self.param_dim)
+        if covariance_format == 'diag':
+            last_entry = self.param_dim * 2
+        else:
+            last_entry = self.param_dim * (self.param_dim - 1) // 2
+        self.psi_inv_index = range(self.param_dim, last_entry)
+        if self.n_covariates_params > 0:
+            self.covariates_index = range(last_entry, last_entry + self.n_covariates_params)
+            last_entry = last_entry + self.n_covariates_params
+        else:
+            self.covariates_index = None
+        if self.n_joint_params > 0:
+            self.joint_index = range(last_entry, last_entry+self.n_joint_params)
+        else:
+            self.joint_index = None
 
     def update_param_samples(self, param_samples: np.ndarray) -> None:
         """update parameter samples, everything else stays the same"""
@@ -219,15 +254,15 @@ class ObjectiveFunctionNLME:
         if self.n_covariates_params > 0:
             assert self.covariates.shape[0] == self.n_sim, \
                 'number of covariates does not match number of simulations'
-            assert self.covariate_mapping is not None, '"covariate_mapping" must be specified if covariates are given'
-            # todo: build check if covariate_mapping is correct
         return
 
     def _helper_sum_log_expectation(self,
                                     beta: np.ndarray,
                                     psi_inverse: np.ndarray,
                                     beta_transformed: Optional[np.ndarray] = None,
-                                    psi_inverse_transformed: Optional[np.ndarray] = None
+                                    psi_inverse_transformed: Optional[np.ndarray] = None,
+                                    joint_model_params: Optional[np.ndarray] = None,
+                                    return_log_integrand: bool = False
                                     ) -> np.ndarray:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
 
@@ -265,6 +300,14 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta
             )
 
+        if self.joint_model_term is not None:
+            # compute log of joint model
+            log_joint = self.joint_model_term(param_samples=self.param_samples, joint_params=joint_model_params)
+            log_integrand += log_joint
+
+        if return_log_integrand:
+            return log_integrand
+
         # log-sum-exp, computes the log of the Monte Carlo approximation of the expectation
         # logsumexp is a stable implementation of log(sum(exp(x)))
         log_sum = logsumexp(log_integrand, axis=1)
@@ -275,8 +318,9 @@ class ObjectiveFunctionNLME:
 
     # define objective function to minimize parameters
     def __call__(self, vector_params: np.ndarray) -> float:
-        # build mean, covariance matrix and vector of parameters for covariates
-        beta, psi_inverse, psi_inverse_vector, covariates_params = self.get_params(vector_params=vector_params)
+        # build mean, covariance matrix and vector of parameters for covariates / joint model
+        (beta, psi_inverse, psi_inverse_vector,
+         covariates_params, joint_model_params) = self.get_params(vector_params=vector_params)
 
         # include covariates
         if self.n_covariates_params > 0:
@@ -285,7 +329,8 @@ class ObjectiveFunctionNLME:
                 beta=beta.copy(),
                 psi_inverse=psi_inverse.copy(),
                 covariates=self.covariates,
-                covariate_params=covariates_params)
+                covariate_params=covariates_params
+            )
             # if mapping returns a tuple, the first entry is beta, the second psi_inverse
             # if not the mapping only returns beta
             if isinstance(transformed_params, tuple):
@@ -315,8 +360,13 @@ class ObjectiveFunctionNLME:
         # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
         # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
         part_one = self.n_sim * self.constant_prior_term + det_term
-        expectation_log_sum = self._helper_sum_log_expectation(beta, psi_inverse,
-                                                               beta_transformed, psi_inverse_transformed)
+        expectation_log_sum = self._helper_sum_log_expectation(
+            beta=beta,
+            psi_inverse=psi_inverse,
+            beta_transformed=beta_transformed,
+            psi_inverse_transformed=psi_inverse_transformed,
+            joint_model_params=joint_model_params
+        )
 
         # compute negative log-likelihood
         nll = -(part_one + expectation_log_sum)
@@ -327,21 +377,28 @@ class ObjectiveFunctionNLME:
             nll += self.correlation_penalty * np.sum(np.abs(psi_inverse_vector[self.param_dim:]))
         return nll
 
-    def get_params(self, vector_params: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray, Optional[np.ndarray]):
+    def get_params(self, vector_params: np.ndarray) -> (np.ndarray, np.ndarray, np.ndarray,
+                                                        Optional[np.ndarray], Optional[np.ndarray]):
         # get parameter vectors
-        # vector_params = (beta, psi_inverse_vector, covariates_params)
-        # covariates_params might be empty
-        beta = vector_params[:self.param_dim]
-        if self.n_covariates_params == 0:
-            psi_inverse_vector = vector_params[self.param_dim:]
-            covariates_params = None
-        else:
-            psi_inverse_vector = vector_params[self.param_dim:-self.n_covariates_params]
-            covariates_params = vector_params[-self.n_covariates_params:]
+        # vector_params = (beta, psi_inverse_vector, covariates_params, joint_params)
+        # covariates_params and joint_params might be missing
+
+        beta = vector_params[self.beta_index]
+        psi_inverse_vector = vector_params[self.psi_inv_index]
         psi_inverse = get_inverse_covariance(psi_inverse_vector,
                                              covariance_format=self.covariance_format,
                                              param_dim=self.param_dim)
-        return beta, psi_inverse, psi_inverse_vector, covariates_params
+
+        if self.covariates_index is not None:
+            covariates_params = vector_params[self.covariates_index]
+        else:
+            covariates_params = None
+
+        if self.joint_index is not None:
+            joint_params = vector_params[self.joint_index]
+        else:
+            joint_params = None
+        return beta, psi_inverse, psi_inverse_vector, covariates_params, joint_params
 
     def get_inverse_covariance_vector(self, psi: np.ndarray) -> np.ndarray:
         if self.covariance_format == 'diag':
@@ -358,8 +415,9 @@ class ObjectiveFunctionNLME:
 
     def estimate_mc_integration_variance(self, vector_params: np.ndarray) -> (np.ndarray, np.ndarray):
         """estimate variance of Monte Carlo approximation of the expectation"""
-        # build mean, covariance matrix and vector of parameters for covariates
-        beta, psi_inverse, psi_inverse_vector, covariates_params = self.get_params(vector_params=vector_params)
+        # build mean, covariance matrix and vector of parameters for covariates / joint model
+        (beta, psi_inverse, psi_inverse_vector,
+         covariates_params, joint_model_params) = self.get_params(vector_params=vector_params)
 
         # include covariates
         # include covariates
@@ -369,7 +427,8 @@ class ObjectiveFunctionNLME:
                 beta=beta.copy(),
                 psi_inverse=psi_inverse.copy(),
                 covariates=self.covariates,
-                covariate_params=covariates_params)
+                covariate_params=covariates_params
+            )
             # if mapping returns a tuple, the first entry is beta, the second psi_inverse
             # if not the mapping only returns beta
             if isinstance(transformed_params, tuple):
@@ -384,41 +443,14 @@ class ObjectiveFunctionNLME:
             beta_transformed, psi_inverse_transformed = None, None
 
         # compute parts of loss
-        # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
-        # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
-        if beta_transformed is None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand_njit(
-                n_sim=self.n_sim,
-                n_samples=self.n_samples,
-                log_param_samples=self.param_samples,
-                beta=beta,  # beta is the mean of the population distribution
-                psi_inverse=psi_inverse,  # psi_inverse is the inverse covariance of the population distribution
-                prior_mean=self.prior_mean,  # (only really needed for gaussian prior)
-                prior_cov_inverse=self.prior_cov_inverse,  # None if uniform prior
-                huber_loss_delta=self.huber_loss_delta  # optional, only needed for huber loss
-            )
-        elif beta_transformed is not None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand_njit(
-                n_sim=self.n_sim,
-                n_samples=self.n_samples,
-                log_param_samples=self.param_samples,
-                beta=beta_transformed,  # now changes per simulation (and repeated for every sample)
-                psi_inverse=psi_inverse,
-                prior_mean=self.prior_mean,
-                prior_cov_inverse=self.prior_cov_inverse,
-                huber_loss_delta=self.huber_loss_delta
-            )
-        else:  # we assume that psi is never None if beta_transformed is not Non
-            log_integrand = compute_log_integrand_njit(
-                n_sim=self.n_sim,
-                n_samples=self.n_samples,
-                log_param_samples=self.param_samples,
-                beta=beta_transformed,  # now changes per simulation (and repeated for every sample)
-                psi_inverse=psi_inverse_transformed,  # now changes per simulation (and repeated for every sample)
-                prior_mean=self.prior_mean,
-                prior_cov_inverse=self.prior_cov_inverse,
-                huber_loss_delta=self.huber_loss_delta
-            )
+        log_integrand = self._helper_sum_log_expectation(
+            beta=beta,
+            psi_inverse=psi_inverse,
+            beta_transformed=beta_transformed,
+            psi_inverse_transformed=psi_inverse_transformed,
+            joint_model_params=joint_model_params,
+            return_log_integrand=True
+        )
         integrand = np.exp(log_integrand)  # sim x samples
 
         # log-sum-exp, computes the log of the Monte Carlo approximation of the expectation

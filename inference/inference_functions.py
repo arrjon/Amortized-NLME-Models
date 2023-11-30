@@ -15,15 +15,18 @@ from inference.nlme_objective import ObjectiveFunctionNLME
 def run_population_optimization(
         individual_model: NlmeBaseAmortizer,
         data: Union[np.ndarray, list[np.ndarray]],
-        param_names: list,
+        param_names: Optional[list],
         cov_type: str = 'diag',
         n_multi_starts: int = 1,
         n_samples_opt: int = 100,
         param_bounds: Optional[np.array] = None,
+        covariates_bounds: Optional[np.ndarray] = None,
+        joint_model_bounds: Optional[np.ndarray] = None,
         covariates: Optional[np.ndarray] = None,
         covariate_mapping: Optional[callable] = None,
         n_covariates_params: int = 0,
-        covariates_bounds: Optional[np.ndarray] = None,
+        joint_model_term: Optional[callable] = None,
+        n_joint_params: int = 0,
         x_fixed_indices: Optional[np.ndarray] = None,
         x_fixed_vals: Optional[np.ndarray] = None,
         file_name: Optional[str] = None,
@@ -38,20 +41,41 @@ def run_population_optimization(
                                               prior_mean=individual_model.prior_mean,
                                               prior_std=individual_model.prior_std,
                                               covariance_format=cov_type,
+                                              prior_type=individual_model.prior_type,
+                                              # for uniform prior, since density depends on it
+                                              prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
+                                                                                                    'prior_bounds') else None,
+                                              # if covariates are used
                                               covariates=covariates,
                                               covariate_mapping=covariate_mapping,
                                               n_covariates_params=n_covariates_params,
-                                              prior_type=individual_model.prior_type,
-                                              # for uniform prior
-                                              prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
-                                                                                                    'prior_bounds') else None,
+                                              # for joint models
+                                              joint_model_term=joint_model_term,
+                                              n_joint_params=n_joint_params
                                               )
     # set up pyPesto
-    param_names_opt = create_param_names_opt(dim=individual_model.amortizer.latent_dim,
-                                             cov_type=cov_type,
-                                             param_names=param_names)
+    # create param names from list respecting the parameterization
+    if param_names is not None:
+        param_names_opt = create_param_names_opt(
+            dim=individual_model.amortizer.latent_dim,
+            cov_type=cov_type,
+            param_names=param_names
+        )
+    else:
+        param_names_opt = None
+
     # create bounds if none are given
     if param_bounds is None:
+        if n_covariates_params > 0:
+            assert covariates_bounds is not None, 'bounds for covariates must be given '
+            assert covariates_bounds.shape[0] == n_covariates_params, ('bounds for covariates must have same dimension'
+                                                                       'as numbers of covariates')
+        if n_joint_params > 0:
+            assert joint_model_bounds is not None, 'bounds for joint model params must be given '
+            assert joint_model_bounds.shape[0] == n_joint_params, (
+                    'bounds for covariates must have same dimension'
+                    'as numbers of covariates')
+
         # automatically create boundaries
         param_bounds = create_boundaries_from_prior(
             prior_mean=individual_model.prior_mean,
@@ -59,9 +83,15 @@ def run_population_optimization(
             prior_type=individual_model.prior_type,
             prior_bounds=individual_model.prior_bounds if hasattr(individual_model, 'prior_bounds') else None,
             covariates_bounds=covariates_bounds,  # only used if covariates are used
-            covariance_format=cov_type)
+            joint_model_bounds=joint_model_bounds,
+            covariance_format=cov_type
+        )
+        if param_names_opt is not None:
+            assert param_bounds.shape[1] == len(param_names_opt), (f'shape of bounds {param_bounds.shape} and length '
+                                                                   f'of list of parameter names '
+                                                                   f'({len(param_names_opt)}) does not match.')
 
-    # save optimizer trace
+    # save optimizer trace if specified, helpful for convergence assessment
     history_options = HistoryOptions(trace_record=trace_record)
 
     if pesto_multi_processes > 1:

@@ -17,6 +17,7 @@ def create_boundaries_from_prior(
         prior_type: str,
         prior_bounds: Optional[np.ndarray] = None,
         covariates_bounds: Optional[np.ndarray] = None,
+        joint_model_bounds: Optional[np.ndarray] = None,
         boundary_width_from_prior: float = 3,
         covariance_format: str = 'diag',
         minimal_variance_fixed_params: float = 0.001) -> np.ndarray:
@@ -55,6 +56,11 @@ def create_boundaries_from_prior(
         # add boundaries for covariates
         lower_bound = np.concatenate((lower_bound, covariates_bounds[:, 0]))
         upper_bound = np.concatenate((upper_bound, covariates_bounds[:, 1]))
+
+    if joint_model_bounds is not None:
+        # add boundaries for covariates
+        lower_bound = np.concatenate((lower_bound, joint_model_bounds[:, 0]))
+        upper_bound = np.concatenate((upper_bound, joint_model_bounds[:, 1]))
 
     assert (lower_bound - upper_bound < 0).all(), 'lower bound must be smaller than upper bound'
     return np.stack((lower_bound, upper_bound))
