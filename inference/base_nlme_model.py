@@ -276,13 +276,11 @@ class NlmeBaseAmortizer(ABC):
             new_sims['parameters'] = self._reconfigure_samples(new_sims['parameters'])
         return new_sims
 
-    @abstractmethod
     def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         """Plots an individual trajectory of an individual in this model."""
         raise NotImplementedError
 
     @staticmethod
-    @abstractmethod
     def prepare_plotting(data: np.ndarray, params: np.ndarray, ax: Optional[plt.Axes] = None) -> plt.Axes:
         raise NotImplementedError
 

@@ -149,7 +149,8 @@ class ObjectiveFunctionNLME:
                  correlation_penalty: Optional[float] = None,
                  huber_loss_delta: Optional[float] = None,
                  prior_type: str = 'normal',
-                 prior_bounds: Optional[np.ndarray] = None):
+                 prior_bounds: Optional[np.ndarray] = None,
+                 use_njit: bool = True):
         """
 
         :param model_name: name of model
@@ -166,6 +167,8 @@ class ObjectiveFunctionNLME:
                         penalizes outliers more strongly than a normal distribution)
         :param prior_type: either 'normal' or 'uniform'
         :param prior_bounds: numpy array of uniform prior bounds (only needed for uniform prior)
+        :param use_njit: whether to use numba to speed up computation, default is True,
+            depending on the available cores and infrastructure, numba might be slower than numpy
         """
 
         self.model_name = model_name
@@ -244,6 +247,13 @@ class ObjectiveFunctionNLME:
         else:
             self.joint_index = None
 
+        # set function to use numba or numpy
+        if use_njit:
+            # depending on the available cores and infrastructure, numba might be slower than numpy
+            self.compute_log_integrand = compute_log_integrand_njit
+        else:
+            self.compute_log_integrand = compute_log_integrand
+
     def update_param_samples(self, param_samples: np.ndarray) -> None:
         """update parameter samples, everything else stays the same"""
         self.param_samples = param_samples
@@ -267,7 +277,7 @@ class ObjectiveFunctionNLME:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
 
         if beta_transformed is None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand_njit(
+            log_integrand = self.compute_log_integrand(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
@@ -278,7 +288,7 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta  # optional, only needed for huber loss
             )
         elif beta_transformed is not None and psi_inverse_transformed is None:
-            log_integrand = compute_log_integrand_njit(
+            log_integrand = self.compute_log_integrand(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,
@@ -289,7 +299,7 @@ class ObjectiveFunctionNLME:
                 huber_loss_delta=self.huber_loss_delta
             )
         else:  # we assume that psi is never None if beta_transformed is not Non
-            log_integrand = compute_log_integrand_njit(
+            log_integrand = self.compute_log_integrand(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
                 log_param_samples=self.param_samples,

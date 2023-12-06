@@ -14,9 +14,9 @@ def log_likelihood_multiplicative_noise(log_measurements: np.ndarray,
     dif_sum = np.sum(((log_measurements - log_simulations) / sigmas)**2)
     if isinstance(sigmas, float):
         # needed for njit, cannot sum over float
-        log_det_sigma = np.log(sigmas**2)
+        log_det_sigma = 2 * np.log(sigmas)
     else:
-        log_det_sigma = np.sum(np.log(sigmas**2))
+        log_det_sigma = 2 * np.sum(np.log(sigmas))
     # log_measurement.size = n_measurements + n_observables, len(log_measurement) = n_measurements
     llh = (-0.5 * log_measurements.size * np.log(2 * np.pi) - 0.5 * len(log_measurements) * log_det_sigma
            - log_measurements.sum() - 0.5 * dif_sum)
@@ -32,8 +32,8 @@ def log_likelihood_additive_noise(measurements: np.ndarray,
     dif_sum = np.sum(((measurements - simulations) / sigmas)**2)
     if isinstance(sigmas, float):
         # needed for njit, cannot sum over float
-        log_det_sigma = np.log(sigmas ** 2)
+        log_det_sigma = 2 * np.log(sigmas)
     else:
-        log_det_sigma = np.sum(np.log(sigmas ** 2))
+        log_det_sigma = 2 * np.sum(np.log(sigmas))
     llh = -0.5 * measurements.size * np.log(2 * np.pi) - 0.5 * len(measurements) * log_det_sigma - 0.5 * dif_sum
     return llh

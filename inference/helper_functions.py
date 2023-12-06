@@ -34,13 +34,11 @@ def create_boundaries_from_prior(
     # add boundaries for variance parameters (log-inverse-transformed)
     max_std = np.max(boundary_width_from_prior * prior_std)
     mean_std = np.mean(prior_std)
-    lb_var = -np.log(mean_std) - max_std
-    ub_var = -np.log(mean_std) + max_std
+    lb_var = -np.log(mean_std + max_std)
 
     # make sure that variance is not too small for fixed parameters
     # otherwise the optimization problem becomes ill-conditioned
-    minimal_var_inv = -np.log(minimal_variance_fixed_params)
-    ub_var = min(ub_var, minimal_var_inv)
+    ub_var = -np.log(minimal_variance_fixed_params)
 
     # concatenate mean and variance boundaries
     lower_bound = np.concatenate((lb_means, np.ones_like(lb_means) * lb_var))
