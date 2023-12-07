@@ -26,7 +26,7 @@ def compute_log_integrand_njit(n_sim: int,
     expectation_approx = np.zeros((n_sim, n_samples))
 
     # for the huber loss we need the cholesky decomposition of psi_inverse
-    cholesky_psi = None
+    # cholesky_psi = None  # is not understood by numba
     if huber_loss_delta is not None and psi_inverse.ndim == 2:
         cholesky_psi = np.linalg.cholesky(psi_inverse)
 
@@ -57,11 +57,12 @@ def compute_log_integrand_njit(n_sim: int,
                     # it changes for every data point
                     temp_psi = 0.5 * dif.T.dot(psi_inverse[sim_id]).dot(dif)
             else:
+                # compute huber loss
                 dif_psi_norm = np.linalg.norm(dif.T.dot(cholesky_psi))
                 if np.abs(dif_psi_norm) <= huber_loss_delta:
-                    temp_psi = 0.5 * dif_psi_norm ** 2
+                    temp_psi = 0.5 * (dif_psi_norm ** 2)
                 else:
-                    temp_psi = huber_loss_delta * (np.abs(dif_psi_norm) - 0.5 * huber_loss_delta)
+                    temp_psi = huber_loss_delta * np.abs(dif_psi_norm) - 0.5 * (huber_loss_delta ** 2)
 
             if prior_cov_inverse is not None:  # gaussian prior
                 temp_sigma = 0.5 * dif_prior.T.dot(prior_cov_inverse).dot(dif_prior)

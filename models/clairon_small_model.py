@@ -303,8 +303,8 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                      f'-{self.n_epochs}epochs'
         return model_name
 
-    def load_data(self,
-                  n_data: Optional[int] = None,
+    @staticmethod
+    def load_data(n_data: Optional[int] = None,
                   load_covariates: bool = False,
                   synthetic: bool = False,
                   return_synthetic_params: bool = False,
@@ -315,7 +315,6 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             np.random.seed(seed)
             # mean and variances (if existent) taken from the clairon paper
             clairon_mean = np.log(np.array([4.5, 12.4, 18.7, 2.7, 0.01, 0.01, 0.2]))
-            clairon_mean[:-2] += 1
             clairon_cov = np.diag(np.array([0.8, 0.2, 0.5, 0.1, 0.3, 0., 0.]) ** 2)  # no fixed parameters
             params = batch_gaussian_prior(mean=clairon_mean,
                                           cov=clairon_cov,
