@@ -174,6 +174,9 @@ def run_population_optimization(
 
     result_list = result.optimize_result.list.copy()
     for res in result_list:
+        # check if res is NoneType (failed start)
+        if res['x'] is None:
+            continue
         res['fval'] = obj_fun_amortized(res['x'])
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
