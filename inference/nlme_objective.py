@@ -6,7 +6,7 @@ from typing import Optional
 import numpy as np
 from numba import njit, prange
 from scipy.linalg import ldl as ldl_decomposition
-from scipy.special import logsumexp
+from scipy.special import logsumexp, erf, gamma
 
 
 @njit(parallel=True)
@@ -17,7 +17,7 @@ def compute_log_integrand_njit(n_sim: int,
                                psi_inverse: np.ndarray,  # psi_inverse is the inverse covariance of the population
                                prior_mean: np.ndarray = None,  # (only really needed for gaussian prior)
                                prior_cov_inverse: Optional[np.ndarray] = None,  # None if uniform prior
-                               huber_loss_delta: Optional[float] = None
+                               huber_loss_delta: Optional[float] = None  # TODO: normalization factor missing
                                # 1.5 times the median of the standard deviations
                                ) -> np.ndarray:
     """
@@ -27,7 +27,7 @@ def compute_log_integrand_njit(n_sim: int,
     expectation_approx = np.zeros((n_sim, n_samples))
 
     # for the huber loss we need the cholesky decomposition of psi_inverse
-    cholesky_psi = None
+    # cholesky_psi = None  # is not understood by numba
     if huber_loss_delta is not None and psi_inverse.ndim == 2:
         cholesky_psi = np.linalg.cholesky(psi_inverse)
 
@@ -58,11 +58,12 @@ def compute_log_integrand_njit(n_sim: int,
                     # it changes for every data point
                     temp_psi = 0.5 * dif.T.dot(psi_inverse[sim_id]).dot(dif)
             else:
+                # compute huber loss
                 dif_psi_norm = np.linalg.norm(dif.T.dot(cholesky_psi))
                 if np.abs(dif_psi_norm) <= huber_loss_delta:
-                    temp_psi = 0.5 * dif_psi_norm ** 2
+                    temp_psi = 0.5 * (dif_psi_norm ** 2)
                 else:
-                    temp_psi = huber_loss_delta * (np.abs(dif_psi_norm) - 0.5 * huber_loss_delta)
+                    temp_psi = huber_loss_delta * np.abs(dif_psi_norm) - 0.5 * (huber_loss_delta ** 2)
 
             if prior_cov_inverse is not None:  # gaussian prior
                 temp_sigma = 0.5 * dif_prior.T.dot(prior_cov_inverse).dot(dif_prior)
@@ -199,6 +200,12 @@ class ObjectiveFunctionNLME:
         self.n_sim, self.n_samples, n_posterior_params = self.param_samples.shape
         # number of parameters for the population distribution (does not include covariates)
         self.param_dim = self.prior_mean.size
+
+        if self.huber_loss_delta is not None:
+            nf = huber_normalizing_factor(delta=self.huber_loss_delta, dim=self.param_dim)
+            # now normalising constants do not cancel out
+            prior_term = self.n_sim * self.param_dim/2 * np.log(2*np.pi)
+            self.huber_constant = -(self.n_sim * np.log(nf)) + prior_term
 
         # prepare covariates
         self.covariates = covariates
@@ -370,6 +377,8 @@ class ObjectiveFunctionNLME:
         # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
         # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
         part_one = self.n_sim * self.constant_prior_term + det_term
+        if self.huber_loss_delta is not None:
+            part_one += self.huber_constant
         expectation_log_sum = self._helper_sum_log_expectation(
             beta=beta,
             psi_inverse=psi_inverse,
@@ -500,3 +509,31 @@ def get_covariance(psi_inverse_vector: np.ndarray,
                                                 param_dim=param_dim)
     psi = np.linalg.inv(inverse_covariance)
     return psi
+
+
+def a(n: int, delta: float) -> float:
+    if n == 0:
+        return np.sqrt(np.pi / 2) * erf(delta / np.sqrt(2))
+    elif n == 1:
+        return 1 - np.exp(delta**2 / 2)
+    else:
+        return -(delta**(n-1)) * np.exp(-delta**2 / 2) + (n - 1) * a(n - 2, delta)
+
+
+def b(n: int, delta: float) -> float:
+    if n == 0:
+        return np.exp(-delta**2) / delta
+    else:
+        return (delta**(n-1)) * np.exp(-delta**2) + n * b(n - 1, delta)
+
+
+def sphere_volume(dim: int, r: float = 1.0) -> float:
+    return (np.pi**(dim / 2)) / gamma(dim / 2 + 1) * (r**dim)
+
+
+def huber_normalizing_factor(delta: float, dim: int) -> float:
+    """normalizing factor for huber loss"""
+    ad = a(dim - 1, delta)
+    bd = b(dim - 1, delta)
+    sphere_d_minus_1 = sphere_volume(dim - 1)
+    return abs(sphere_d_minus_1) * (ad + np.exp(delta ** 2 / 2) * bd)

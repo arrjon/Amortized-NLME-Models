@@ -15,7 +15,8 @@ class ObjectiveFunctionEmpiricalBayes:
                  sigmas: np.ndarray,
                  batch_simulator: Optional[callable] = None,
                  noise_type: str = "multiplicative",
-                 ignore_conditional: bool = False  # returns only a likelihood
+                 ignore_conditional: bool = False,  # returns only a likelihood
+                 huber_loss_delta: Optional[float] = None
                  ):
         self.data = data
         self.pop_mean = pop_mean
@@ -30,6 +31,10 @@ class ObjectiveFunctionEmpiricalBayes:
         self.precompute_mvn = -0.5 * (self.pop_mean.size * np.log(2 * np.pi) + logabsdet)
         self.noise_type = noise_type
 
+        self.huber_loss_delta = huber_loss_delta
+        if huber_loss_delta is not None:
+            self.cholesky_psi = np.linalg.cholesky(self.inv_pop_cov)
+
     def __call__(self, individual_params: np.ndarray, sim_data: Optional[np.ndarray] = None) -> float:
 
         if sim_data is None:
@@ -40,10 +45,16 @@ class ObjectiveFunctionEmpiricalBayes:
             # then only the likelihood is returned
             conditional = 0
         else:
-            # compute multivariate normal logpdf
-            # \log p(x) =-\frac{k}{2}\log(2\pi) -\frac12 \log\vert\Sigma\vert-{\frac{1}{2}}(x-\mu)^T\Sigma^{-1}(x-\mu)
             dif = individual_params - self.pop_mean
-            temp = dif.T.dot(self.inv_pop_cov).dot(dif)
+            if self.huber_loss_delta is None:
+                # compute multivariate normal logpdf
+                temp = dif.T.dot(self.inv_pop_cov).dot(dif)
+            else:
+                dif_psi_norm = np.linalg.norm(dif.T.dot(self.cholesky_psi))
+                if np.abs(dif_psi_norm) <= self.huber_loss_delta:
+                    temp = 0.5 * (dif_psi_norm ** 2)
+                else:
+                    temp = self.huber_loss_delta * np.abs(dif_psi_norm) - 0.5 * (self.huber_loss_delta ** 2)
             conditional = self.precompute_mvn - 0.5 * temp
 
         # compute multivariate normal logpdf

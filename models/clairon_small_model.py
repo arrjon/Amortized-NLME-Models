@@ -9,15 +9,15 @@ import pathlib
 from datetime import datetime
 from functools import partial
 from typing import Optional, Union
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-
 from bayesflow.simulation import Simulator, Prior
-
 from juliacall import Main as jl
 from juliacall import Pkg as jlPkg
 from juliacall import convert as jlconvert
+from scipy.stats import qmc
 
 from inference.base_nlme_model import NlmeBaseAmortizer, configure_input, batch_gaussian_prior, batch_uniform_prior
 
@@ -60,6 +60,7 @@ def prop_noise(y: np.ndarray, error_params: np.ndarray) -> np.ndarray:
 
 def batch_simulator(param_batch: np.ndarray,
                     t_measurements: Optional[np.ndarray] = None,
+                    n_measurements: int = 4,
                     t_doses: Optional[np.ndarray] = None,
                     dose_amount: float = 1.,
                     with_noise: bool = True,
@@ -76,7 +77,7 @@ def batch_simulator(param_batch: np.ndarray,
     """
     # sample the measurement time points
     if t_measurements is None:
-        t_measurements = get_measurement_time_points()
+        t_measurements = get_measurement_time_points(n_measurements)
     # sample the dosing time points
     if t_doses is None:
         t_doses = get_dosing_time_points()
@@ -197,7 +198,8 @@ def convert_bf_to_observables(output: np.ndarray,
 
 class ClaironSmallModel(NlmeBaseAmortizer):
     def __init__(self, name: str = 'ClaironModel', network_idx: int = -1, load_best: bool = False,
-                 prior_type: str = 'normal'  # normal or uniform
+                 prior_type: str = 'normal',  # normal or uniform
+                 n_measurements: int = 4
                  ):
         # define names of parameters
         param_names = ['fM2', 'fM3', 'theta', 'deltaV', 'deltaS',
@@ -210,6 +212,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         # define prior bounds for uniform prior
         # self.prior_bounds = np.array([[-10, 5], [-5, 10], [-5, 10], [-20, 0], [-10, 0], [-10, 0], [-10, 0]])
         self.prior_bounds = np.array([[-5, 7], [-5, 7], [-5, 7], [-5, 7], [-5, 0], [-5, 0], [-5, 0]])
+        self.n_measurements = n_measurements
 
         super().__init__(name=name,
                          network_idx=network_idx,
@@ -220,7 +223,10 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                          prior_type=prior_type,
                          max_n_obs=7)  # 4 measurements, 3 doses
 
-        self.simulator = Simulator(batch_simulator_fun=batch_simulator)
+        # define simulator
+        batch_simulator_fun = partial(batch_simulator,
+                                      n_measurements=self.n_measurements)
+        self.simulator = Simulator(batch_simulator_fun=batch_simulator_fun)
 
         print(f'Using the model {name}')
 
@@ -270,9 +276,9 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                 model_idx = 11
                 # amortizer-clairon-uniform-sequence-summary-Bi-LSTM-7layers-3coupling-spline-500epochs -> 11
 
-        bidirectional_LSTM = [False, True]
+        bidirectional_LSTM = [False, True]  # [True]
         n_coupling_layers = [7, 8]
-        n_dense_layers_in_coupling = [2, 3]
+        n_dense_layers_in_coupling = [2, 3]  # [3]
         coupling_design = ['affine', 'spline']
         summary_network_type = ['sequence']
 
@@ -315,7 +321,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             np.random.seed(seed)
             # mean and variances (if existent) taken from the clairon paper
             clairon_mean = np.log(np.array([4.5, 12.4, 18.7, 2.7, 0.01, 0.01, 0.2]))
-            clairon_mean[:-2] += 1
+            clairon_mean[:-2] -= 1
             clairon_cov = np.diag(np.array([0.8, 0.2, 0.5, 0.1, 0.3, 0., 0.]) ** 2)  # no fixed parameters
             params = batch_gaussian_prior(mean=clairon_mean,
                                           cov=clairon_cov,
@@ -323,7 +329,8 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             if synthetic_fixed_indices is not None:
                 # fix parameters to test identifiability
                 params[:, synthetic_fixed_indices] = clairon_mean[synthetic_fixed_indices]
-            patients_data = batch_simulator(param_batch=params)
+            patients_data = batch_simulator(param_batch=params,
+                                            n_measurements=self.n_measurements)
             if return_synthetic_params:
                 return patients_data, params
             return patients_data
@@ -369,7 +376,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         if params is None:
             params = self.prior(1)['prior_draws'][0]
 
-        output = batch_simulator(params)
+        output = batch_simulator(params, n_measurements=self.n_measurements)
         _ = self.prepare_plotting(output, params)
 
         plt.title(f'Patient Simulation')
@@ -424,98 +431,103 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         return ax
 
 
-def get_measurement_time_points() -> np.ndarray:
+def get_measurement_time_points(n_measurements: int) -> np.ndarray:
     """sample the measurement time points"""
-    # list of possible measurement time points taken from data
-    zero_measurement = np.array([23, 29, 34, 41, 43, 48, 49, 50, 52, 53, 54, 55, 56,
-                                 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69,
-                                 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82,
-                                 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
-                                 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 109,
-                                 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 124, 125, 126,
-                                 127, 134, 136, 142, 143, 153])
-    # frequency of the measurement time points
-    p_zero_measurement = np.array([8, 4, 4, 8, 4, 4, 8, 4, 4, 4, 12, 8, 8,
-                                   32, 40, 24, 52, 60, 68, 52, 56, 116, 96, 92, 100, 124,
-                                   152, 96, 88, 136, 136, 108, 100, 56, 80, 56, 72, 56, 44,
-                                   44, 28, 44, 28, 60, 24, 64, 32, 52, 20, 32, 36, 24,
-                                   28, 20, 40, 24, 24, 12, 16, 12, 16, 16, 16, 12, 20,
-                                   4, 8, 12, 4, 12, 8, 8, 12, 4, 8, 8, 4, 4,
-                                   4, 4, 4, 4, 8, 4])
-    # list of possible measurement time points taken from data
-    fist_diff_measurement = np.array([5, 9, 13, 15, 19, 20, 22, 27, 28, 30, 33, 34, 35,
-                                      36, 37, 38, 39, 40, 41, 42, 43, 45, 46, 47, 48, 49,
-                                      50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
-                                      63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
-                                      76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88,
-                                      89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101,
-                                      102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114,
-                                      115, 116, 117, 118, 119, 120, 124, 127, 128, 130, 132, 133, 134,
-                                      140, 147, 153, 158, 184, 195, 200, 217, 219])
-    # frequency of the measurement time points
-    p_fist_diff_measurement = np.array([4, 4, 4, 4, 4, 8, 4, 4, 16, 4, 4, 12, 12, 4, 4, 8, 12,
-                                        16, 20, 4, 20, 8, 20, 16, 8, 20, 28, 24, 20, 16, 24, 28, 56, 40,
-                                        48, 44, 68, 36, 76, 76, 88, 92, 44, 56, 44, 64, 72, 68, 72, 32, 44,
-                                        52, 80, 68, 28, 48, 16, 24, 28, 32, 56, 36, 44, 36, 28, 44, 68, 60,
-                                        72, 72, 52, 56, 40, 52, 48, 24, 8, 20, 16, 12, 16, 20, 24, 8, 4,
-                                        20, 12, 12, 16, 8, 16, 20, 4, 8, 16, 4, 12, 8, 4, 8, 12, 8,
-                                        12, 4, 8, 4, 4, 4, 4, 4, 4, 4, 4])
-    # list of possible measurement time points taken from data
-    second_diff_measurement = np.array([7, 9, 22, 26, 27, 28, 30, 32, 33, 34, 35, 37, 38,
-                                        40, 41, 42, 43, 44, 45, 47, 48, 49, 50, 51, 52, 53,
-                                        54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
-                                        67, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
-                                        81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93,
-                                        94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106,
-                                        107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
-                                        120, 121, 122, 123, 125, 126, 127, 128, 129, 131, 132, 133, 134,
-                                        136, 138, 139, 140, 141, 142, 146, 148, 149, 150, 151, 153, 154,
-                                        155, 156, 159, 162, 163, 173, 174, 177, 182, 201])
-    # frequency of the measurement time points
-    p_second_diff_measurement = np.array([4, 4, 4, 8, 4, 4, 12, 4, 4, 4, 8, 12, 8,
-                                          12, 12, 4, 8, 8, 8, 4, 16, 8, 24, 20, 20, 8,
-                                          8, 8, 24, 20, 20, 12, 16, 28, 48, 16, 20, 32, 68,
-                                          36, 28, 24, 32, 16, 52, 44, 68, 36, 48, 68, 52, 20,
-                                          40, 36, 52, 56, 32, 44, 52, 48, 40, 56, 100, 120, 108,
-                                          56, 60, 84, 44, 72, 44, 72, 44, 32, 48, 32, 28, 24,
-                                          32, 28, 16, 32, 44, 48, 24, 8, 12, 16, 12, 16, 8,
-                                          28, 8, 4, 16, 4, 24, 12, 8, 4, 4, 4, 4, 4,
-                                          8, 12, 8, 12, 8, 4, 4, 4, 4, 4, 4, 4, 4,
-                                          4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
-    # list of possible measurement time points taken from data
-    third_diff_measurement = np.array([10, 15, 17, 20, 21, 25, 28, 30, 32, 33, 34, 35, 37,
-                                       39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
-                                       53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65,
-                                       66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
-                                       79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
-                                       92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104,
-                                       105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
-                                       118, 119, 120, 121, 123, 124, 125, 126, 127, 128, 129, 130, 131,
-                                       132, 133, 134, 135, 136, 138, 139, 140, 141, 142, 144, 148, 149,
-                                       150, 151, 152, 153, 154, 155, 156, 158, 159, 160, 161, 162, 166,
-                                       167, 168, 171, 172, 175, 176, 178, 179, 181, 182, 190, 195, 197,
-                                       217, 221, 239, 248, 250])
-    # frequency of the measurement time points
-    p_third_diff_measurement = np.array([4, 4, 4, 4, 8, 4, 8, 4, 4, 4, 12, 12, 4, 8, 4, 4, 20,
-                                         12, 8, 4, 8, 16, 24, 24, 12, 16, 16, 12, 20, 44, 24, 12, 32, 36,
-                                         20, 4, 56, 44, 32, 52, 68, 24, 56, 72, 60, 36, 56, 52, 40, 76, 68,
-                                         56, 48, 36, 40, 32, 20, 60, 36, 28, 32, 48, 44, 76, 84, 56, 28, 56,
-                                         24, 20, 48, 36, 24, 48, 8, 24, 32, 44, 28, 28, 28, 36, 12, 16, 12,
-                                         24, 32, 24, 8, 4, 20, 8, 20, 12, 12, 16, 4, 12, 12, 8, 24, 8,
-                                         8, 8, 28, 16, 4, 12, 12, 8, 16, 4, 4, 12, 4, 4, 4, 4, 4,
-                                         4, 4, 8, 12, 8, 4, 4, 4, 4, 4, 4, 8, 4, 8, 4, 4, 4,
-                                         4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8])
+    if n_measurements == 4:  # real data looks like this
+        # list of possible measurement time points taken from data
+        zero_measurement = np.array([23, 29, 34, 41, 43, 48, 49, 50, 52, 53, 54, 55, 56,
+                                     57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69,
+                                     70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82,
+                                     83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95,
+                                     96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 109,
+                                     110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 124, 125, 126,
+                                     127, 134, 136, 142, 143, 153])
+        # frequency of the measurement time points
+        p_zero_measurement = np.array([8, 4, 4, 8, 4, 4, 8, 4, 4, 4, 12, 8, 8,
+                                       32, 40, 24, 52, 60, 68, 52, 56, 116, 96, 92, 100, 124,
+                                       152, 96, 88, 136, 136, 108, 100, 56, 80, 56, 72, 56, 44,
+                                       44, 28, 44, 28, 60, 24, 64, 32, 52, 20, 32, 36, 24,
+                                       28, 20, 40, 24, 24, 12, 16, 12, 16, 16, 16, 12, 20,
+                                       4, 8, 12, 4, 12, 8, 8, 12, 4, 8, 8, 4, 4,
+                                       4, 4, 4, 4, 8, 4])
+        # list of possible measurement time points taken from data
+        fist_diff_measurement = np.array([5, 9, 13, 15, 19, 20, 22, 27, 28, 30, 33, 34, 35,
+                                          36, 37, 38, 39, 40, 41, 42, 43, 45, 46, 47, 48, 49,
+                                          50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62,
+                                          63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75,
+                                          76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88,
+                                          89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101,
+                                          102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114,
+                                          115, 116, 117, 118, 119, 120, 124, 127, 128, 130, 132, 133, 134,
+                                          140, 147, 153, 158, 184, 195, 200, 217, 219])
+        # frequency of the measurement time points
+        p_fist_diff_measurement = np.array([4, 4, 4, 4, 4, 8, 4, 4, 16, 4, 4, 12, 12, 4, 4, 8, 12,
+                                            16, 20, 4, 20, 8, 20, 16, 8, 20, 28, 24, 20, 16, 24, 28, 56, 40,
+                                            48, 44, 68, 36, 76, 76, 88, 92, 44, 56, 44, 64, 72, 68, 72, 32, 44,
+                                            52, 80, 68, 28, 48, 16, 24, 28, 32, 56, 36, 44, 36, 28, 44, 68, 60,
+                                            72, 72, 52, 56, 40, 52, 48, 24, 8, 20, 16, 12, 16, 20, 24, 8, 4,
+                                            20, 12, 12, 16, 8, 16, 20, 4, 8, 16, 4, 12, 8, 4, 8, 12, 8,
+                                            12, 4, 8, 4, 4, 4, 4, 4, 4, 4, 4])
+        # list of possible measurement time points taken from data
+        second_diff_measurement = np.array([7, 9, 22, 26, 27, 28, 30, 32, 33, 34, 35, 37, 38,
+                                            40, 41, 42, 43, 44, 45, 47, 48, 49, 50, 51, 52, 53,
+                                            54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66,
+                                            67, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+                                            81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93,
+                                            94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106,
+                                            107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119,
+                                            120, 121, 122, 123, 125, 126, 127, 128, 129, 131, 132, 133, 134,
+                                            136, 138, 139, 140, 141, 142, 146, 148, 149, 150, 151, 153, 154,
+                                            155, 156, 159, 162, 163, 173, 174, 177, 182, 201])
+        # frequency of the measurement time points
+        p_second_diff_measurement = np.array([4, 4, 4, 8, 4, 4, 12, 4, 4, 4, 8, 12, 8,
+                                              12, 12, 4, 8, 8, 8, 4, 16, 8, 24, 20, 20, 8,
+                                              8, 8, 24, 20, 20, 12, 16, 28, 48, 16, 20, 32, 68,
+                                              36, 28, 24, 32, 16, 52, 44, 68, 36, 48, 68, 52, 20,
+                                              40, 36, 52, 56, 32, 44, 52, 48, 40, 56, 100, 120, 108,
+                                              56, 60, 84, 44, 72, 44, 72, 44, 32, 48, 32, 28, 24,
+                                              32, 28, 16, 32, 44, 48, 24, 8, 12, 16, 12, 16, 8,
+                                              28, 8, 4, 16, 4, 24, 12, 8, 4, 4, 4, 4, 4,
+                                              8, 12, 8, 12, 8, 4, 4, 4, 4, 4, 4, 4, 4,
+                                              4, 4, 4, 4, 4, 4, 4, 4, 4, 4])
+        # list of possible measurement time points taken from data
+        third_diff_measurement = np.array([10, 15, 17, 20, 21, 25, 28, 30, 32, 33, 34, 35, 37,
+                                           39, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52,
+                                           53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65,
+                                           66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78,
+                                           79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91,
+                                           92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104,
+                                           105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117,
+                                           118, 119, 120, 121, 123, 124, 125, 126, 127, 128, 129, 130, 131,
+                                           132, 133, 134, 135, 136, 138, 139, 140, 141, 142, 144, 148, 149,
+                                           150, 151, 152, 153, 154, 155, 156, 158, 159, 160, 161, 162, 166,
+                                           167, 168, 171, 172, 175, 176, 178, 179, 181, 182, 190, 195, 197,
+                                           217, 221, 239, 248, 250])
+        # frequency of the measurement time points
+        p_third_diff_measurement = np.array([4, 4, 4, 4, 8, 4, 8, 4, 4, 4, 12, 12, 4, 8, 4, 4, 20,
+                                             12, 8, 4, 8, 16, 24, 24, 12, 16, 16, 12, 20, 44, 24, 12, 32, 36,
+                                             20, 4, 56, 44, 32, 52, 68, 24, 56, 72, 60, 36, 56, 52, 40, 76, 68,
+                                             56, 48, 36, 40, 32, 20, 60, 36, 28, 32, 48, 44, 76, 84, 56, 28, 56,
+                                             24, 20, 48, 36, 24, 48, 8, 24, 32, 44, 28, 28, 28, 36, 12, 16, 12,
+                                             24, 32, 24, 8, 4, 20, 8, 20, 12, 12, 16, 4, 12, 12, 8, 24, 8,
+                                             8, 8, 28, 16, 4, 12, 12, 8, 16, 4, 4, 12, 4, 4, 4, 4, 4,
+                                             4, 4, 8, 12, 8, 4, 4, 4, 4, 4, 4, 8, 4, 8, 4, 4, 4,
+                                             4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 8])
 
-    zero_m = np.random.choice(zero_measurement,
-                              p=p_zero_measurement / p_zero_measurement.sum())
-    fist_diff_m = np.random.choice(fist_diff_measurement,
-                                   p=p_fist_diff_measurement / p_fist_diff_measurement.sum())
-    second_diff_m = np.random.choice(second_diff_measurement,
-                                     p=p_second_diff_measurement / p_second_diff_measurement.sum())
-    third_diff_m = np.random.choice(third_diff_measurement,
-                                    p=p_third_diff_measurement / p_third_diff_measurement.sum())
-    t_measurements = np.array([zero_m, zero_m + fist_diff_m, zero_m + fist_diff_m + second_diff_m,
-                               zero_m + fist_diff_m + second_diff_m + third_diff_m])
+        zero_m = np.random.choice(zero_measurement,
+                                  p=p_zero_measurement / p_zero_measurement.sum())
+        fist_diff_m = np.random.choice(fist_diff_measurement,
+                                       p=p_fist_diff_measurement / p_fist_diff_measurement.sum())
+        second_diff_m = np.random.choice(second_diff_measurement,
+                                         p=p_second_diff_measurement / p_second_diff_measurement.sum())
+        third_diff_m = np.random.choice(third_diff_measurement,
+                                        p=p_third_diff_measurement / p_third_diff_measurement.sum())
+        t_measurements = np.array([zero_m, zero_m + fist_diff_m, zero_m + fist_diff_m + second_diff_m,
+                                   zero_m + fist_diff_m + second_diff_m + third_diff_m])
+    else:
+        sampler = qmc.Halton(d=1)
+        sample = sampler.random(n=n_measurements)
+        t_measurements = qmc.scale(sample, 0, 500).flatten()
     return t_measurements
 
 

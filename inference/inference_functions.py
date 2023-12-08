@@ -29,6 +29,7 @@ def run_population_optimization(
         n_joint_params: int = 0,
         x_fixed_indices: Optional[np.ndarray] = None,
         x_fixed_vals: Optional[np.ndarray] = None,
+        huber_loss: Union[bool, float] = False,
         file_name: Optional[str] = None,
         verbose: bool = False,
         trace_record: bool = False,
@@ -36,6 +37,43 @@ def run_population_optimization(
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         result: Optional[Result] = None
 ) -> (Result, ObjectiveFunctionNLME):
+    """
+    Run optimization for the population parameters.
+    :param individual_model: object of class NlmeBaseAmortizer, used to draw samples from the posterior
+    :param data: observed data, should be in the same format as the simulator of the individual model
+    :param param_names: list of parameter names
+    :param cov_type: can be 'diag' or 'cholesky', determines the covariance structure of the population parameters
+    :param n_multi_starts: number of starting points for the optimization
+    :param n_samples_opt: number of samples used for the optimization
+    :param param_bounds: boundaries for the optimization, if not given, they are automatically created from the prior
+    :param covariates: covariates used for the population parameters, will be used in the covariate mapping
+    :param covariate_mapping: Function that maps the covariates to the population parameters
+    :param n_covariates_params: number of parameters that are used for the covariate mapping,
+        might be different from the number of covariates
+    :param covariates_bounds: boundaries for the covariates, if not given, they are automatically created from the prior
+    :param x_fixed_indices: indices of fixed parameters of the objective function
+    :param x_fixed_vals: values of fixed parameters of the objective function
+    :param huber_loss: if True, use huber loss for the population parameters, huber loss delta is chosen automatically
+        (i.e., 1.5 the median of the standard deviation of the posterior samples)
+        if float, use huber loss with given delta
+    :param file_name: file name for saving the optimization result (should be hdf5 format)
+    :param verbose: if True, print some information during the optimization
+    :param trace_record: if True, save the trace of the optimization, needs more memory, but might help to debug
+    :param pesto_multi_processes: number of processes used for the optimization, should be <= n_multi_starts, since
+        parallel processes use the same objective function, i.e. the same samples from the posterior
+    :param pesto_optimizer: optimizer used for the optimization, standard is L-BFGS from scipy
+    :param result: result object from a previous optimization, if given, the optimization is continued
+    :return:  result object from the optimization, objective function used for the optimization
+    """
+    # set up huber loss if desired
+    if isinstance(huber_loss, float):
+        huber_loss_delta = huber_loss
+    elif huber_loss:
+        # chose delta in a data dependent way
+        samples = individual_model.draw_posterior_samples(data, n_samples_opt).reshape(-1, individual_model.n_params)
+        huber_loss_delta = np.round((np.median(np.std(samples, axis=0)) * 1.5), 4)
+    else:
+        huber_loss_delta = None
     # create objective function
     obj_fun_amortized = ObjectiveFunctionNLME(model_name=individual_model.name,
                                               prior_mean=individual_model.prior_mean,
@@ -51,7 +89,8 @@ def run_population_optimization(
                                               n_covariates_params=n_covariates_params,
                                               # for joint models
                                               joint_model_term=joint_model_term,
-                                              n_joint_params=n_joint_params
+                                              n_joint_params=n_joint_params,
+                                              huber_loss_delta=huber_loss_delta
                                               )
     # set up pyPesto
     # create param names from list respecting the parameterization
@@ -165,6 +204,9 @@ def run_population_optimization(
 
     result_list = result.optimize_result.list.copy()
     for res in result_list:
+        # check if res is NoneType (failed start)
+        if res['x'] is None:
+            continue
         res['fval'] = obj_fun_amortized(res['x'])
     setattr(result.optimize_result, "list", result_list)
     result.optimize_result.sort()
