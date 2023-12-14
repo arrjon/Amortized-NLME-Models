@@ -276,11 +276,20 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                 model_idx = 11
                 # amortizer-clairon-uniform-sequence-summary-Bi-LSTM-7layers-3coupling-spline-500epochs -> 11
 
-        bidirectional_LSTM = [False, True]  # [True]
-        n_coupling_layers = [7, 8]
-        n_dense_layers_in_coupling = [2, 3]  # [3]
-        coupling_design = ['affine', 'spline']
-        summary_network_type = ['sequence']
+        if self.n_measurements == 4:
+            bidirectional_LSTM = [False, True]
+            n_coupling_layers = [7, 8]
+            n_dense_layers_in_coupling = [2, 3]
+            coupling_design = ['affine', 'spline']
+            summary_network_type = ['sequence']
+        else:
+            bidirectional_LSTM = [True]
+            n_coupling_layers = [7, 8]
+            n_dense_layers_in_coupling = [3]
+            coupling_design = ['affine', 'spline']
+            summary_network_type = ['sequence']
+            if load_best:
+                model_idx = 0
 
         combinations = list(itertools.product(bidirectional_LSTM, n_coupling_layers,
                                               n_dense_layers_in_coupling, coupling_design, summary_network_type))
@@ -307,6 +316,8 @@ class ClaironSmallModel(NlmeBaseAmortizer):
                      f'-{self.n_coupling_layers}layers' \
                      f'-{self.n_dense_layers_in_coupling}coupling-{self.coupling_design}' \
                      f'-{self.n_epochs}epochs'
+        if self.n_measurements != 4:
+            model_name = "new-" + model_name
         return model_name
 
     def load_data(self,
@@ -321,7 +332,7 @@ class ClaironSmallModel(NlmeBaseAmortizer):
             np.random.seed(seed)
             # mean and variances (if existent) taken from the clairon paper
             clairon_mean = np.log(np.array([4.5, 12.4, 18.7, 2.7, 0.01, 0.01, 0.2]))
-            clairon_mean[:-2] -= 1
+            #clairon_mean[:-2] -= 1
             clairon_cov = np.diag(np.array([0.8, 0.2, 0.5, 0.1, 0.3, 0., 0.]) ** 2)  # no fixed parameters
             params = batch_gaussian_prior(mean=clairon_mean,
                                           cov=clairon_cov,
