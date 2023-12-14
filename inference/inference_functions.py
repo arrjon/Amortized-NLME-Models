@@ -35,6 +35,7 @@ def run_population_optimization(
         trace_record: bool = False,
         pesto_multi_processes: int = 1,
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
+        use_result_as_start: bool = False,
         result: Optional[Result] = None
 ) -> (Result, ObjectiveFunctionNLME):
     """
@@ -62,6 +63,7 @@ def run_population_optimization(
     :param pesto_multi_processes: number of processes used for the optimization, should be <= n_multi_starts, since
         parallel processes use the same objective function, i.e. the same samples from the posterior
     :param pesto_optimizer: optimizer used for the optimization, standard is L-BFGS from scipy
+    :param use_result_as_start: if True, use the result from a previous optimization as starting point
     :param result: result object from a previous optimization, if given, the optimization is continued
     :return:  result object from the optimization, objective function used for the optimization
     """
@@ -169,12 +171,20 @@ def run_population_optimization(
         pesto_objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
 
         # create pypesto problem
+        if use_result_as_start and result is not None:
+            # use result from previous optimization as starting point
+            print("Use result from previous optimization as starting point.")
+            x_guesses = result.optimize_result.x
+        else:
+            x_guesses = None
         pesto_problem = Problem(objective=pesto_objective,
-                                lb=param_bounds[0, :], ub=param_bounds[1, :],
+                                lb=param_bounds[0, :],
+                                ub=param_bounds[1, :],
                                 x_names=param_names_opt,
                                 x_scales=['log'] * len(param_names_opt),
                                 x_fixed_indices=x_fixed_indices,
-                                x_fixed_vals=x_fixed_vals)
+                                x_fixed_vals=x_fixed_vals,
+                                x_guesses=x_guesses)
         if verbose and run_idx == 0:
             pesto_problem.print_parameter_summary()
             df_fixed = pd.DataFrame(pesto_problem.x_fixed_vals,

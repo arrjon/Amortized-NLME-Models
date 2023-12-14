@@ -185,14 +185,11 @@ class ObjectiveFunctionNLME:
         if prior_type == 'normal':
             self.prior_cov_inverse = np.diag(1. / prior_std ** 2)
             _, logabsdet = np.linalg.slogdet(self.prior_cov_inverse)
-            self.constant_prior_term = - 0.5 * logabsdet
+            self.constant_prior_term = self.n_sim * 0.5 * (prior_mean.size * 0.5 * np.log(2 * np.pi) - logabsdet)
         elif prior_type == 'uniform':
             # log( (b-a)^n )
             self.prior_cov_inverse = None
-            self.constant_prior_term = np.sum(np.log(np.diff(prior_bounds, axis=1)))
-            # gaussian population density constant now does not cancel out
-            # add constant to make approximations more comparable
-            self.constant_prior_term += -prior_mean.size * 0.5 * np.log(2 * np.pi)
+            self.constant_prior_term = self.n_sim * np.sum(np.log(np.diff(prior_bounds, axis=1)))
         else:
             raise ValueError(f'prior_type must be either "gaussian" or "uniform", but is {prior_type}')
 
@@ -201,11 +198,11 @@ class ObjectiveFunctionNLME:
         # number of parameters for the population distribution (does not include covariates)
         self.param_dim = self.prior_mean.size
 
-        if self.huber_loss_delta is not None:
+        if self.huber_loss_delta is None:
+            self.constant_population_term = self.n_sim * self.param_dim * 0.5 * np.log(2 * np.pi)
+        else:
             nf = huber_normalizing_factor(delta=self.huber_loss_delta, dim=self.param_dim)
-            # now normalising constants do not cancel out
-            prior_term = self.n_sim * self.param_dim/2 * np.log(2*np.pi)
-            self.huber_constant = -(self.n_sim * np.log(nf)) + prior_term
+            self.constant_population_term = -self.n_sim * np.log(nf)
 
         # prepare covariates
         self.covariates = covariates
@@ -357,12 +354,12 @@ class ObjectiveFunctionNLME:
                 det_term = 0
                 for sim_idx in range(self.n_sim):
                     _, logabsdet = np.linalg.slogdet(psi_inverse_transformed[sim_idx])
-                    det_term += logabsdet
+                    det_term += 0.5 * logabsdet
             else:
                 beta_transformed, psi_inverse_transformed = transformed_params, None
                 # compute parts of the loss
                 _, logabsdet = np.linalg.slogdet(psi_inverse)
-                det_term = self.n_sim * logabsdet
+                det_term = self.n_sim * 0.5 * logabsdet
 
             # beta_transformed is per simulation
             # we need them in the form of simulation x samples
@@ -371,14 +368,12 @@ class ObjectiveFunctionNLME:
             beta_transformed, psi_inverse_transformed = None, None
             # compute parts of the loss
             _, logabsdet = np.linalg.slogdet(psi_inverse)
-            det_term = self.n_sim * logabsdet
+            det_term = self.n_sim * 0.5 * logabsdet
 
         # compute the loss
         # gaussian prior: constant_prior_term is _log_sqrt_det of prior covariance
         # uniform prior: constant_prior_term is log of (b-a)^n and constant from gaussian population density
         part_one = self.n_sim * self.constant_prior_term + det_term
-        if self.huber_loss_delta is not None:
-            part_one += self.huber_constant
         expectation_log_sum = self._helper_sum_log_expectation(
             beta=beta,
             psi_inverse=psi_inverse,
