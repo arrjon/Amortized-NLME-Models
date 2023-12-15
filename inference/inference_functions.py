@@ -69,11 +69,13 @@ def run_population_optimization(
     """
     # set up huber loss if desired
     if isinstance(huber_loss, float):
+        print(f"Use huber loss with delta = {huber_loss}.")
         huber_loss_delta = huber_loss
     elif huber_loss:
         # chose delta in a data dependent way
         samples = individual_model.draw_posterior_samples(data, n_samples_opt).reshape(-1, individual_model.n_params)
         huber_loss_delta = np.round((np.median(np.std(samples, axis=0)) * 1.5), 4)
+        print(f"Use huber loss with delta = {huber_loss}.")
     else:
         huber_loss_delta = None
     # create objective function
