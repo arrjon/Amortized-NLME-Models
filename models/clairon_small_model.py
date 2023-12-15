@@ -539,6 +539,7 @@ def get_measurement_time_points(n_measurements: int) -> np.ndarray:
         sampler = qmc.Halton(d=1)
         sample = sampler.random(n=n_measurements)
         t_measurements = qmc.scale(sample, 0, 500).flatten()
+        t_measurements.sort()
     return t_measurements
 
 
