@@ -462,6 +462,11 @@ class ObjectiveFunctionNLME:
         log_expectation = logsumexp(log_integrand, axis=1) - self.log_n_samples
         expectation = np.exp(log_expectation)  # expectation per simulation
 
+        # compute upper and lower bound of the expectation part of the likelihood
+        # upper_bound = self.n_sim * np.max(log_integrand)
+        # lower_bound = self.n_sim * (np.min(np.max(log_integrand, axis=1)) - self.log_n_samples)
+        # print(f'lower bound: {lower_bound}, upper bound: {upper_bound}, likelihood: {np.sum(log_expectation)}')
+
         # unbiased estimator of variance of Monte Carlo approximation for each simulation
         var = 1 / (self.n_samples - 1) * np.sum((integrand - expectation[:, np.newaxis]) ** 2, axis=1)  # sim x samples
         error_estimate = np.sqrt(var) / np.sqrt(self.n_samples)
