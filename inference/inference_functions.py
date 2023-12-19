@@ -47,11 +47,14 @@ def run_population_optimization(
     :param n_multi_starts: number of starting points for the optimization
     :param n_samples_opt: number of samples used for the optimization
     :param param_bounds: boundaries for the optimization, if not given, they are automatically created from the prior
+    :param covariates_bounds: boundaries for the covariates, if not given, they are automatically created from the prior
+    :param joint_model_bounds: boundaries for the joint model parameters, if not given, they are automatically created
     :param covariates: covariates used for the population parameters, will be used in the covariate mapping
     :param covariate_mapping: Function that maps the covariates to the population parameters
     :param n_covariates_params: number of parameters that are used for the covariate mapping,
         might be different from the number of covariates
-    :param covariates_bounds: boundaries for the covariates, if not given, they are automatically created from the prior
+    :param joint_model_term: Function that adds a joint model term to the population loss
+    :param n_joint_params: number of parameters that are used for the joint model term
     :param x_fixed_indices: indices of fixed parameters of the objective function
     :param x_fixed_vals: values of fixed parameters of the objective function
     :param huber_loss: if True, use huber loss for the population parameters, huber loss delta is chosen automatically
