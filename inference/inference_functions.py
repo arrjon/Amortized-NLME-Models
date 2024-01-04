@@ -108,6 +108,12 @@ def run_population_optimization(
             covariates_bounds=covariates_bounds,  # only used if covariates are used
             covariance_format=cov_type)
 
+        if covariates_bounds is not None:
+            assert covariates_bounds.shape[1] == 2, \
+                "covariates_bounds should be a 2d array with shape (2, n_covariates)"
+            assert covariates_bounds.shape[0] == n_covariates_params, \
+                "covariates_bounds should be a 2d array with shape (2, n_covariates)"
+
     # save optimizer trace
     history_options = HistoryOptions(trace_record=trace_record)
 
@@ -131,7 +137,12 @@ def run_population_optimization(
         print("Warning: pesto_multi_processes >= n_multi_starts. All starts use the same samples from the posterior. "
               "This is not recommended and you should increase 'n_multi_starts'.")
 
-    for run_idx in tqdm(range(n_runs), disable=not verbose, desc='Multi-start optimization'):
+    if result is not None:
+        n_old_runs = len(result.optimize_result.list)
+    else:
+        n_old_runs = 0
+
+    for run_idx in tqdm(range(n_old_runs, n_old_runs + n_runs), disable=not verbose, desc='Multi-start optimization'):
         # run optimization for each starting point with different objective functions (due to sampling)
         # if pesto_multi_processes > 1, same objective function is used for all starting points
 
@@ -141,7 +152,7 @@ def run_population_optimization(
         obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
         # sanity check of objective function
-        test = obj_fun_amortized(np.array([1] * len(param_names_opt)))
+        test = obj_fun_amortized(np.ones(len(param_names_opt)))
         assert isinstance(test, float), f"Objective function should return a scalar, but returned {test}."
 
         pesto_objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
@@ -161,7 +172,7 @@ def run_population_optimization(
                                 x_fixed_indices=x_fixed_indices,
                                 x_fixed_vals=x_fixed_vals,
                                 x_guesses=x_guesses)
-        if verbose and run_idx == 0:
+        if verbose and run_idx == n_old_runs:
             pesto_problem.print_parameter_summary()
             df_fixed = pd.DataFrame(pesto_problem.x_fixed_vals,
                                     index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],

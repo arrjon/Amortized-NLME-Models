@@ -44,9 +44,6 @@ def compute_log_integrand_njit(n_sim: int,
                 # beta might change for every data point
                 dif = log_param_samples[sim_id, sample_id] - beta[sim_id]
 
-            # the prior mean does not change for every data point
-            dif_prior = log_param_samples[sim_id, sample_id] - prior_mean
-
             if huber_loss_delta is None:
                 # compute quadratic loss
                 # psi_inverse can be either the inverse covariance or the transformed inverse covariance
@@ -66,6 +63,8 @@ def compute_log_integrand_njit(n_sim: int,
                     temp_psi = huber_loss_delta * np.abs(dif_psi_norm) - 0.5 * (huber_loss_delta ** 2)
 
             if prior_cov_inverse is not None:  # gaussian prior
+                # the prior mean does not change for every data point
+                dif_prior = log_param_samples[sim_id, sample_id] - prior_mean
                 temp_sigma = 0.5 * dif_prior.T.dot(prior_cov_inverse).dot(dif_prior)
                 expectation_approx[sim_id, sample_id] = temp_sigma - temp_psi
             else:
@@ -232,6 +231,7 @@ class ObjectiveFunctionNLME:
             self.covariates_index = None
 
         # set function to use numba or numpy
+        self.use_njit = use_njit
         if use_njit:
             # depending on the available cores and infrastructure, numba might be slower than numpy
             self.compute_log_integrand = compute_log_integrand_njit
@@ -290,6 +290,11 @@ class ObjectiveFunctionNLME:
                                     ) -> np.ndarray:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
 
+        # beta_transformed is per simulation
+        if not self.use_njit:
+            # we need beta_transformed in the form of simulation x samples
+            beta_transformed = np.repeat(beta_transformed, self.n_samples, axis=0)
+
         if beta_transformed is None and psi_inverse_transformed is None:
             log_integrand = self.compute_log_integrand(
                 n_sim=self.n_sim,
@@ -312,7 +317,7 @@ class ObjectiveFunctionNLME:
                 prior_cov_inverse=self.prior_cov_inverse,
                 huber_loss_delta=self.huber_loss_delta
             )
-        else:  # we assume that psi is never None if beta_transformed is not Non
+        else:  # we assume that psi is never None if beta_transformed is not None
             log_integrand = self.compute_log_integrand(
                 n_sim=self.n_sim,
                 n_samples=self.n_samples,
@@ -364,10 +369,6 @@ class ObjectiveFunctionNLME:
                 # compute parts of the loss
                 _, logabsdet = np.linalg.slogdet(psi_inverse)
                 det_term = self.n_sim * 0.5 * logabsdet
-
-            # beta_transformed is per simulation
-            # we need them in the form of simulation x samples
-            beta_transformed = np.repeat(beta_transformed, self.n_samples, axis=0)
         else:
             beta_transformed, psi_inverse_transformed = None, None
             # compute parts of the loss
