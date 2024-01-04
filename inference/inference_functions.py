@@ -33,7 +33,8 @@ def run_population_optimization(
         pesto_multi_processes: int = 1,
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         use_result_as_start: bool = False,
-        result: Optional[Result] = None
+        result: Optional[Result] = None,
+        use_njit: bool = True
 ) -> (Result, ObjectiveFunctionNLME):
     """
     Run optimization for the population parameters.
@@ -62,6 +63,8 @@ def run_population_optimization(
     :param pesto_optimizer: optimizer used for the optimization, standard is L-BFGS from scipy
     :param use_result_as_start: if True, use the result from a previous optimization as starting point
     :param result: result object from a previous optimization, if given, the optimization is continued
+    :param use_njit: whether to use numba to speed up computation, default is True,
+        depending on the available cores and infrastructure, numba might be slower than numpy
     :return:  result object from the optimization, objective function used for the optimization
     """
     # set up huber loss if desired
@@ -88,6 +91,7 @@ def run_population_optimization(
                                               prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
                                                                                                     'prior_bounds') else None,
                                               huber_loss_delta=huber_loss_delta,
+                                              use_njit=use_njit
                                               )
     # set up pyPesto
     param_names_opt = create_param_names_opt(dim=individual_model.amortizer.latent_dim,
