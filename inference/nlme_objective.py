@@ -405,7 +405,7 @@ class ObjectiveFunctionNLME:
                 beta=beta.copy(),
                 psi_inverse=psi_inverse.copy(),
                 covariates=self.covariates,
-                covariate_params=covariates_params
+                covariates_params=covariates_params
             )
             # if mapping returns a tuple, the first entry is beta, the second psi_inverse
             # if not the mapping only returns beta
