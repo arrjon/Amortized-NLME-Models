@@ -172,3 +172,5 @@ cython_debug/
 /Experiments/empirical_bayes_results/
 /Experiments/results_nonmem/
 /Experiments/multi-experiment/
+/Experiments/real_data/
+/Experiments/sde_comparison/
