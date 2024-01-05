@@ -205,15 +205,14 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         if synthetic:
             # load synthetic data which is saved in csv
             obs_data = load_single_cell_data('data_random_cells', real_data=False)
-            if n_data is not None:
-                obs_data = obs_data[:n_data]
         else:
             obs_data = load_multi_experiment_data(load_egfp=load_egfp, load_d2egfp=load_d2egfp)
-            if n_data is not None:
-                if load_egfp and load_d2egfp:
-                    obs_data = [data[:int(n_data / 2)] for data in obs_data]
-                else:
-                    obs_data = obs_data[:n_data]
+
+        if n_data is not None:
+            if load_egfp and load_d2egfp:
+                obs_data = [data[:int(n_data / 2)] for data in obs_data]
+            else:
+                obs_data = obs_data[:n_data]
         return obs_data
 
     @staticmethod

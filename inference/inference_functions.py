@@ -36,7 +36,8 @@ def run_population_optimization(
         pesto_multi_processes: int = 1,
         pesto_optimizer: optimize.Optimizer = optimize.ScipyOptimizer(),
         use_result_as_start: bool = False,
-        result: Optional[Result] = None
+        result: Optional[Result] = None,
+        use_njit: bool = True
 ) -> (Result, ObjectiveFunctionNLME):
     """
     Run optimization for the population parameters.
@@ -68,6 +69,8 @@ def run_population_optimization(
     :param pesto_optimizer: optimizer used for the optimization, standard is L-BFGS from scipy
     :param use_result_as_start: if True, use the result from a previous optimization as starting point
     :param result: result object from a previous optimization, if given, the optimization is continued
+    :param use_njit: whether to use numba to speed up computation, default is True,
+        depending on the available cores and infrastructure, numba might be slower than numpy
     :return:  result object from the optimization, objective function used for the optimization
     """
     # set up huber loss if desired
@@ -89,7 +92,7 @@ def run_population_optimization(
                                               prior_type=individual_model.prior_type,
                                               # for uniform prior, since density depends on it
                                               prior_bounds=individual_model.prior_bounds if hasattr(individual_model,
-                                                                                                    'prior_bounds') else None,
+                                                                                                'prior_bounds') else None,
                                               # if covariates are used
                                               covariates=covariates,
                                               covariate_mapping=covariate_mapping,
@@ -97,7 +100,8 @@ def run_population_optimization(
                                               # for joint models
                                               joint_model_term=joint_model_term,
                                               n_joint_params=n_joint_params,
-                                              huber_loss_delta=huber_loss_delta
+                                              huber_loss_delta=huber_loss_delta,
+                                              use_njit=use_njit
                                               )
     # set up pyPesto
     # create param names from list respecting the parameterization
@@ -137,6 +141,12 @@ def run_population_optimization(
                                                                    f'of list of parameter names '
                                                                    f'({len(param_names_opt)}) does not match.')
 
+        if covariates_bounds is not None:
+            assert covariates_bounds.shape[1] == 2, \
+                "covariates_bounds should be a 2d array with shape (2, n_covariates)"
+            assert covariates_bounds.shape[0] == n_covariates_params, \
+                "covariates_bounds should be a 2d array with shape (2, n_covariates)"
+
     # save optimizer trace if specified, helpful for convergence assessment
     history_options = HistoryOptions(trace_record=trace_record)
 
@@ -160,7 +170,12 @@ def run_population_optimization(
         print("Warning: pesto_multi_processes >= n_multi_starts. All starts use the same samples from the posterior. "
               "This is not recommended and you should increase 'n_multi_starts'.")
 
-    for run_idx in tqdm(range(n_runs), disable=not verbose, desc='Multi-start optimization'):
+    if result is not None:
+        n_old_runs = len(result.optimize_result.list)
+    else:
+        n_old_runs = 0
+
+    for run_idx in tqdm(range(n_old_runs, n_old_runs + n_runs), disable=not verbose, desc='Multi-start optimization'):
         # run optimization for each starting point with different objective functions (due to sampling)
         # if pesto_multi_processes > 1, same objective function is used for all starting points
 
@@ -170,7 +185,7 @@ def run_population_optimization(
         obj_fun_amortized.update_param_samples(param_samples=param_samples)
 
         # sanity check of objective function
-        test = obj_fun_amortized(np.array([1] * len(param_names_opt)))
+        test = obj_fun_amortized(np.ones(len(param_names_opt)))
         assert isinstance(test, float), f"Objective function should return a scalar, but returned {test}."
 
         pesto_objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
@@ -190,7 +205,7 @@ def run_population_optimization(
                                 x_fixed_indices=x_fixed_indices,
                                 x_fixed_vals=x_fixed_vals,
                                 x_guesses=x_guesses)
-        if verbose and run_idx == 0:
+        if verbose and run_idx == n_old_runs:
             pesto_problem.print_parameter_summary()
             df_fixed = pd.DataFrame(pesto_problem.x_fixed_vals,
                                     index=np.array(param_names_opt)[pesto_problem.x_fixed_indices],

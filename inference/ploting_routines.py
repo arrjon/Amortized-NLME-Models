@@ -423,7 +423,7 @@ def corrplot(corr_df: pd.DataFrame, ax: Optional[plt.Axes] = None) -> plt.Axes:
     if ax is None:
         f, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(corr_df,
-                cmap=sns.diverging_palette(220, 10, as_cmap=True),
+                cmap=sns.diverging_palette(10, 220, as_cmap=True),
                 vmin=-1.0, vmax=1.0,
                 square=True, ax=ax)
     ax.set_title('Correlation Matrix', fontsize=16)
