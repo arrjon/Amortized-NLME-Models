@@ -291,7 +291,7 @@ class ObjectiveFunctionNLME:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
 
         # beta_transformed is per simulation
-        if not self.use_njit:
+        if not self.use_njit and beta_transformed is not None:
             # we need beta_transformed in the form of simulation x samples
             beta_transformed = np.repeat(beta_transformed, self.n_samples, axis=0)
 
@@ -414,10 +414,6 @@ class ObjectiveFunctionNLME:
                 beta_transformed, psi_inverse_transformed = transformed_params
             else:
                 beta_transformed, psi_inverse_transformed = transformed_params, None
-
-            # beta_transformed is per simulation
-            # we need them in the form of simulation x samples
-            beta_transformed = np.repeat(beta_transformed, self.n_samples, axis=0)
         else:
             beta_transformed, psi_inverse_transformed = None, None
 
