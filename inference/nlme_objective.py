@@ -210,7 +210,7 @@ class ObjectiveFunctionNLME:
                 'every covariate must have a parameter (can be fixed)'
             args = list(signature(covariate_mapping).parameters.keys())
             assert 'beta' in args, 'to use a covariate mapping the argument "beta" is expected'
-            assert 'psi_inverse' in args, 'to use covariate mapping the argument "psi_inverse" is expected'
+            assert 'psi_inverse_vector' in args, 'to use covariate mapping the argument "psi_inverse_vector" is expected'
             assert 'covariates' in args, 'to use a covariate mapping the argument "covariates" is expected'
             assert 'covariates_params' in args, ('to use a covariate mapping the argument "covariates_params" '
                                                  'is expected')
@@ -350,7 +350,7 @@ class ObjectiveFunctionNLME:
             # beta transformed is now a mean depending on the covariates, thus changing for every data point
             transformed_params = self.covariate_mapping(
                 beta=beta.copy(),
-                psi_inverse=psi_inverse.copy(),
+                psi_inverse_vector=psi_inverse_vector.copy(),
                 covariates=self.covariates,
                 covariates_params=covariates_params
             )
@@ -404,7 +404,7 @@ class ObjectiveFunctionNLME:
             # beta transformed is now a mean depending on the covariates, thus changing for every data point
             transformed_params = self.covariate_mapping(
                 beta=beta.copy(),
-                psi_inverse=psi_inverse.copy(),
+                psi_inverse_vector=psi_inverse_vector.copy(),
                 covariates=self.covariates,
                 covariates_params=covariates_params
             )

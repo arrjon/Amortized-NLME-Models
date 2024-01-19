@@ -82,7 +82,6 @@ def create_param_names_opt(dim: int,
 
 def create_mixed_effect_model_param_names(param_names: list,
                                           cov_type: str,
-                                          covariates_names: Optional[list] = None
                                           ) -> list:
     """create parameter names for mixed effect model (mean, variance, correlation)"""
     pop_param_names = ['pop-' + name for name in param_names]
@@ -92,8 +91,6 @@ def create_mixed_effect_model_param_names(param_names: list,
     if cov_type == 'cholesky' and len(mixed_effect_params_names) == len(param_names) * 2:
         # add parameter names in exact the same order as in the covariance matrix
         mixed_effect_params_names += create_correlation_names(param_names)
-    if covariates_names is not None:
-        mixed_effect_params_names += covariates_names
     return mixed_effect_params_names
 
 
