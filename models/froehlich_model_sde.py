@@ -183,7 +183,7 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         # load best
         if load_best:
             model_idx = 3
-            # amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-750epochs -> 3
+            # amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-500epochs -> 3
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]
