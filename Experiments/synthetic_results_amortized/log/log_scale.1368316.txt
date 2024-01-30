@@ -1,0 +1,92 @@
+2023-12-25 19:32:25.807703: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-12-25 19:32:26.077147: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2023-12-25 19:32:26.077193: I tensorflow/compiler/xla/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2023-12-25 19:32:27.225782: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
+2023-12-25 19:32:27.226022: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
+2023-12-25 19:32:27.226029: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+2023-12-25 19:32:55.117991: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2023-12-25 19:32:55.118308: W tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:265] failed call to cuInit: UNKNOWN ERROR (303)
+2023-12-25 19:32:55.118331: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (cn07): /proc/driver/nvidia/version does not exist
+2023-12-25 19:32:55.118849: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+INFO:root:Performing 2 pilot runs with the DetailedFroehlichModel model...
+INFO:root:Shape of parameter batch after 2 pilot simulations: (batch_size = 2, 11)
+INFO:root:Shape of simulation batch after 2 pilot simulations: (batch_size = 2, 180, 1)
+INFO:root:No optional prior non-batchable context provided.
+INFO:root:No optional prior batchable context provided.
+INFO:root:No optional simulation non-batchable context provided.
+INFO:root:No optional simulation batchable context provided.
+INFO:root:Loaded loss history from networks/amortizer-detailed-fro-sequence-summary-Bi-LSTM-7layers-2coupling-spline-500epochs/history_335.pkl.
+INFO:root:Networks loaded from networks/amortizer-detailed-fro-sequence-summary-Bi-LSTM-7layers-2coupling-spline-500epochs/ckpt-335
+INFO:root:Performing a consistency check with provided components...
+INFO:root:Done.
+using 2 layers of MultiConv1D, a bidirectional LSTM with 256 units and a dense layer with output dimension 22 as summary network
+using a 7-layer cINN as inference network with 2 layers of design spline
+prior mean: [-1. -1. -1. 12. -1.  1. -1. -6.  0.  0. -1.]
+prior covariance diagonal: [5. 5. 2. 1. 2. 2. 2. 5. 2. 5. 2.]
+Using the model DetailedFroehlichModel
+Model: "amortized_posterior"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ invertible_network (Inverti  multiple                 769265    
+ bleNetwork)                                                     
+                                                                 
+ sequence_network (SequenceN  multiple                 610614    
+ etwork)                                                         
+                                                                 
+=================================================================
+Total params: 1,379,879
+Trainable params: 1,379,725
+Non-trainable params: 154
+_________________________________________________________________
+None
+10 samples
+100 individuals
+['pop-$\\delta_1 m_0$', 'pop-$\\delta_2$', 'pop-$e_0 m_0$', 'pop-$k_2 m_0 scale$', 'pop-$k_2$', 'pop-$k_1 m_0$', 'pop-$r_0 m_0$', 'pop-$\\gamma$', 'pop-$t_0$', 'pop-offset', 'pop-$\\sigma$', 'var-$\\delta_1 m_0$', 'var-$\\delta_2$', 'var-$e_0 m_0$', 'var-$k_2 m_0 scale$', 'var-$k_2$', 'var-$k_1 m_0$', 'var-$r_0 m_0$', 'var-$\\gamma$', 'var-$t_0$', 'var-offset', 'var-$\\sigma$']
+## Optimization Result 
+
+* number of starts: 100 
+* best value: -966.8809409277314, id=batch_32_0
+* worst value: -839.1727836268562, id=batch_13_0
+* number of non-finite values: 0
+
+* execution time summary:
+	* Mean execution time: 1.287s
+	* Maximum execution time: 4.080s,	id=batch_0_0
+	* Minimum execution time: 0.864s,	id=batch_79_0
+* summary of optimizer messages:
+
+  |   Count | Message                                         |
+  |--------:|:------------------------------------------------|
+  |     100 | CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH |
+
+* best value found (approximately) 1 time(s)
+* number of plateaus found: 3
+
+A summary of the best run:
+
+### Optimizer Result
+
+* optimizer used: <ScipyOptimizer method=L-BFGS-B options={'disp': False, 'maxfun': 1000}>
+* message: CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH 
+* number of evaluations: 193
+* time taken to optimize: 1.761s
+* startpoint: [ -7.27248331  -4.40289648   2.32637641  11.89203173  -1.03429468
+   1.3559889   -0.35019546 -10.55127587  -2.91007086  -4.63752212
+  -4.25198009  -2.99548497  -1.77212068   0.67099839   2.13699697
+   3.48879481   0.27731097   1.09719005  -1.60091047   5.33780381
+  -0.27789214]
+* endpoint: [ 0.50345177 -0.60398888 -0.70648291 12.3342169  -0.14891245  1.16219355
+ -1.86332823 -6.34063616 -0.44362772  2.08501384 -3.45019677 -0.65957824
+ -0.65231686  0.3493458   0.08573913  0.86432229 -0.28926378 -0.51205221
+ -1.60650247  0.65983821  6.19214367]
+* final objective value: -966.8809409277314
+* final gradient value: [ 9.11722964e-03  1.42564431e-02  2.46775471e-02 -2.15368345e-03
+  6.78562628e-03  8.91384389e-03 -1.46407046e-02  1.18889147e-02
+  4.11885139e-02  2.55321538e-01 -9.70329666e-02 -3.27656835e-03
+ -4.84931206e-03 -2.72059424e-02 -4.86579665e-05  9.97783900e-03
+  2.10320650e-03 -4.96299890e-03 -2.80738277e-03 -1.29336968e-02
+ -3.42149292e+00]
+
