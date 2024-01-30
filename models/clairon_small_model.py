@@ -84,11 +84,15 @@ def batch_simulator(param_batch: np.ndarray,
     # starting values
     x0 = np.array([0.0, 0.0, 0.0, 0.0, 1.0])
 
+    # first dosing event is expected to be at t=0
+    y_zeros = np.zeros(np.sum(t_measurements < t_doses[0]))
+    t_simulate = t_measurements[t_measurements >= t_doses[0]] - t_doses[0]
+
     # convert to julia types
     jl_x0 = jlconvert(jl.Vector[jl.Float64], x0)
     jl_dose_amount = jlconvert(jl.Float64, dose_amount)
-    jl_dosetimes = jlconvert(jl.Vector[jl.Float64], t_doses)
-    jl_t_measurement = jlconvert(jl.Vector[jl.Float64], t_measurements)
+    jl_dosetimes = jlconvert(jl.Vector[jl.Float64], t_doses[1:] - t_doses[0])
+    jl_t_measurement = jlconvert(jl.Vector[jl.Float64], t_simulate)
 
     # simulate batch
     if param_batch.ndim == 1:  # so not (batch_size, params)
@@ -111,6 +115,7 @@ def batch_simulator(param_batch: np.ndarray,
         y_sim = jl.simulateSmallClairon(jl_parameter, jl_x0,
                                         jl_dose_amount, jl_dosetimes,
                                         jl_t_measurement).to_numpy()
+        y_sim = np.concatenate((y_zeros, y_sim))
 
         # apply noise
         if with_noise:

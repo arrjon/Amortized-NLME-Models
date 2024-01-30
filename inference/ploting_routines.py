@@ -382,8 +382,6 @@ def plot_histograms(param_samples: np.ndarray,
 
     for _ax in axis[n_params:]:
         _ax.remove()
-    if fig_name is not None:
-        plt.savefig(fig_name)
     plt.show()
     return
 

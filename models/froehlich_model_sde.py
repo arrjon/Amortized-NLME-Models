@@ -245,9 +245,9 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
     def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         """Plots an individual trajectory of an individual in this model."""
         if params is None:
-            params = self.prior(10)['prior_draws']
+            params = self.prior(1)['prior_draws'][0]
 
-        output = batch_simulator(params[0], n_obs=180, with_noise=True)
+        output = batch_simulator(params, n_obs=180, with_noise=True)
         ax = self.prepare_plotting(output, params)
 
         plt.title(f'Cell Simulation')

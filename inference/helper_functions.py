@@ -206,22 +206,3 @@ def compute_error_estimate(results: np.ndarray,
         error = np.mean((temp_results - reference) ** 2, axis=1)
     return error
 
-
-def compute_variance_estimate(results: np.ndarray,
-                              bi_modal: bool = False) -> np.ndarray:
-    assert results.ndim == 2, 'results must be 2D array'
-
-    reference = results.mean(axis=0)
-    temp_results = results.copy()
-
-    if bi_modal:
-        # handle the bimodal distributions, both modes are equally acceptable
-        # check which mode is in the reference
-        first_param_larger = reference[0] > reference[1]
-        for r_i, res in enumerate(temp_results):
-            if (res[0] > res[1]) != first_param_larger:
-                # switch modes
-                temp_results[r_i, [0, 1, 6, 7]] = temp_results[r_i, [1, 0, 7, 6]]
-
-    var = np.mean((results - reference) ** 2)
-    return var
