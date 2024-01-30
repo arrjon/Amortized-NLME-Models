@@ -12,6 +12,7 @@ neural posterior estimator.
 The notebook `Amortized NLME Inference` shows how to use the trained neural posterior estimator for inference of a NLME model.
 
 In the folder `Experiments` you can find the code for the experiments of the paper, to reproduce the results and generate the plots.
+The trained neural networks for these experiments are in `networks`.
 
 Below you find a step-by-step guide to use the Amortized-NLME-Models package.
 The package is still under development and will be extended in the future.
