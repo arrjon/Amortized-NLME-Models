@@ -22,7 +22,7 @@ If you have any questions or suggestions, please contact us.
 ## Installation
 You can install the two main dependencies using the package manager [pip](https://pip.pypa.io/en/stable/):
 - [BayesFlow](https://bayesflow.org): `pip install bayesflow` 
-- [PyPesto](https://pypesto.readthedocs.io): `pip install pypesto`
+- [pyPesto](https://pypesto.readthedocs.io): `pip install pypesto`
 
 Then you can clone the AmortizedNLME package using the `git clone`.
 
