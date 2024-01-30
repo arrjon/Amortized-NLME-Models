@@ -43,7 +43,7 @@ The scripts are currently set up to only perform one SAEM run.
 
 ## Folder structure
 ### projects
-**Overview** of `FroehlichModelMonolixNLME`:
+**Overview**:
 ```
 projects/froehlich/$MODEL/synthetic_$CELLNUMBER/
     ∟code/
