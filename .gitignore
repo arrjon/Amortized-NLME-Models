@@ -162,6 +162,10 @@ cython_debug/
 /data/clairon/
 /data/froehlich_eGFP/
 /data/pharma/
+/plots/abc/
+/plots/calibration/clairon/
+/plots/calibration/clairon uniform/
+/plots/calibration/pharma/
 .idea
 /Experiments/sampling_results/
 /Experiments/empirical_bayes_results/
