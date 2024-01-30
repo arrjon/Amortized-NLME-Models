@@ -1,0 +1,417 @@
+2023-11-17 05:56:51.227749: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-11-17 05:56:52.101630: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
+2023-11-17 05:56:52.101679: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
+2023-11-17 05:56:52.101684: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+2023-11-17 05:56:55.640077: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-11-17 05:56:56.041704: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1613] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 78936 MB memory:  -> device: 0, name: NVIDIA A100 80GB PCIe, pci bus id: 0000:81:00.0, compute capability: 8.0
+INFO:root:Performing 2 pilot runs with the SimpleFroehlichModel model...
+INFO:root:Shape of parameter batch after 2 pilot simulations: (batch_size = 2, 6)
+INFO:root:Shape of simulation batch after 2 pilot simulations: (batch_size = 2, 180, 1)
+INFO:root:No optional prior non-batchable context provided.
+INFO:root:No optional prior batchable context provided.
+INFO:root:No optional simulation non-batchable context provided.
+INFO:root:No optional simulation batchable context provided.
+INFO:root:Initialized empty loss history.
+INFO:root:Initialized networks from scratch.
+INFO:root:Performing a consistency check with provided components...
+2023-11-17 05:56:57.342052: I tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:630] TensorFloat-32 will be used for the matrix multiplication. This will only be logged once.
+2023-11-17 05:56:57.444154: I tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:428] Loaded cuDNN version 8303
+INFO:root:Done.
+[PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU'), PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+training on gpu
+using 2 layers of MultiConv1D, a bidirectional LSTM with 256 units and a dense layer with output dimension 12 as summary network
+using a 7-layer cINN as inference network with 2 layers of design spline
+prior mean: [-3. -3.  5.  0.  0. -1.]
+prior covariance diagonal: [ 5.  5. 11.  2.  6.  2.]
+Using the model SimpleFroehlichModel
+amortizer-simple-fro-sequence-summary-Bi-LSTM-7layers-2coupling-spline-500epochs
+max epochs 500
+Model: "amortized_posterior"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ invertible_network (Inverti  multiple                 525490    
+ bleNetwork)                                                     
+                                                                 
+ sequence_network (SequenceN  multiple                 605484    
+ etwork)                                                         
+                                                                 
+=================================================================
+Total params: 1,130,974
+Trainable params: 1,130,890
+Non-trainable params: 84
+_________________________________________________________________
+INFO:root:Generated 1000 simulations for validation.
+2023-11-17 05:57:32.924133: I tensorflow/compiler/xla/service/service.cc:173] XLA service 0x7f216fb93030 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2023-11-17 05:57:32.924168: I tensorflow/compiler/xla/service/service.cc:181]   StreamExecutor device (0): NVIDIA A100 80GB PCIe, Compute Capability 8.0
+2023-11-17 05:57:32.927517: I tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.cc:268] disabling MLIR crash reproducer, set env var `MLIR_CRASH_REPRODUCER_DIRECTORY` to enable.
+2023-11-17 05:57:33.012839: I tensorflow/compiler/jit/xla_compilation_cache.cc:477] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+/home/jonas/Amortized_NLME/models/froehlich_model_simple.py:44: RuntimeWarning: overflow encountered in exp
+  m = np.exp(-delta * (t - t_0))
+/home/jonas/Amortized_NLME/models/froehlich_model_simple.py:46: RuntimeWarning: overflow encountered in exp
+  p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
+/home/jonas/Amortized_NLME/models/froehlich_model_simple.py:46: RuntimeWarning: overflow encountered in multiply
+  p = k_m0_scale / (delta - gamma) * (np.exp(-gamma * (t - t_0)) - m)
+INFO:root:Validation, Epoch: 1, Loss: 1.219
+INFO:root:Validation, Epoch: 2, Loss: -0.089
+INFO:root:Validation, Epoch: 3, Loss: -0.797
+INFO:root:Validation, Epoch: 4, Loss: -1.157
+INFO:root:Validation, Epoch: 5, Loss: -2.467
+INFO:root:Validation, Epoch: 6, Loss: -2.930
+INFO:root:Validation, Epoch: 7, Loss: -2.258
+INFO:root:Validation, Epoch: 8, Loss: -3.193
+INFO:root:Validation, Epoch: 9, Loss: -3.463
+INFO:root:Validation, Epoch: 10, Loss: -3.303
+INFO:root:Validation, Epoch: 11, Loss: -3.262
+INFO:root:Validation, Epoch: 12, Loss: -3.512
+INFO:root:Validation, Epoch: 13, Loss: -3.907
+INFO:root:Validation, Epoch: 14, Loss: -3.952
+INFO:root:Validation, Epoch: 15, Loss: -3.799
+INFO:root:Validation, Epoch: 16, Loss: -3.865
+INFO:root:Validation, Epoch: 17, Loss: -4.371
+INFO:root:Validation, Epoch: 18, Loss: -3.576
+INFO:root:Validation, Epoch: 19, Loss: -4.375
+INFO:root:Validation, Epoch: 20, Loss: -4.375
+INFO:root:Validation, Epoch: 21, Loss: -3.878
+INFO:root:Validation, Epoch: 22, Loss: -4.551
+INFO:root:Validation, Epoch: 23, Loss: -4.148
+INFO:root:Validation, Epoch: 24, Loss: -4.679
+INFO:root:Validation, Epoch: 25, Loss: -4.527
+INFO:root:Validation, Epoch: 26, Loss: -4.553
+INFO:root:Validation, Epoch: 27, Loss: -4.583
+INFO:root:Validation, Epoch: 28, Loss: -4.689
+INFO:root:Validation, Epoch: 29, Loss: -4.273
+INFO:root:Validation, Epoch: 30, Loss: -4.776
+INFO:root:Validation, Epoch: 31, Loss: -4.808
+INFO:root:Validation, Epoch: 32, Loss: -4.712
+INFO:root:Validation, Epoch: 33, Loss: -4.717
+INFO:root:Validation, Epoch: 34, Loss: -4.523
+INFO:root:Validation, Epoch: 35, Loss: -5.015
+INFO:root:Validation, Epoch: 36, Loss: -5.023
+INFO:root:Validation, Epoch: 37, Loss: -4.983
+INFO:root:Validation, Epoch: 38, Loss: -5.004
+INFO:root:Validation, Epoch: 39, Loss: -4.709
+INFO:root:Validation, Epoch: 40, Loss: -4.903
+INFO:root:Validation, Epoch: 41, Loss: -4.575
+INFO:root:Validation, Epoch: 42, Loss: -4.684
+INFO:root:Validation, Epoch: 43, Loss: -5.073
+INFO:root:Validation, Epoch: 44, Loss: -4.792
+INFO:root:Validation, Epoch: 45, Loss: -5.037
+INFO:root:Validation, Epoch: 46, Loss: -4.588
+INFO:root:Validation, Epoch: 47, Loss: -5.226
+INFO:root:Validation, Epoch: 48, Loss: -5.224
+INFO:root:Validation, Epoch: 49, Loss: -5.020
+INFO:root:Validation, Epoch: 50, Loss: -4.807
+INFO:root:Validation, Epoch: 51, Loss: -5.181
+INFO:root:Validation, Epoch: 52, Loss: -4.455
+INFO:root:Validation, Epoch: 53, Loss: -4.981
+INFO:root:Validation, Epoch: 54, Loss: -4.613
+INFO:root:Validation, Epoch: 55, Loss: -5.153
+INFO:root:Validation, Epoch: 56, Loss: -5.000
+INFO:root:Validation, Epoch: 57, Loss: -5.256
+INFO:root:Validation, Epoch: 58, Loss: -5.426
+INFO:root:Validation, Epoch: 59, Loss: -5.023
+INFO:root:Validation, Epoch: 60, Loss: -5.073
+INFO:root:Validation, Epoch: 61, Loss: -5.257
+INFO:root:Validation, Epoch: 62, Loss: -5.370
+INFO:root:Validation, Epoch: 63, Loss: -4.758
+INFO:root:Validation, Epoch: 64, Loss: -4.519
+INFO:root:Validation, Epoch: 65, Loss: -5.291
+INFO:root:Validation, Epoch: 66, Loss: -5.175
+INFO:root:Validation, Epoch: 67, Loss: -5.384
+INFO:root:Validation, Epoch: 68, Loss: -5.470
+INFO:root:Validation, Epoch: 69, Loss: -5.478
+INFO:root:Validation, Epoch: 70, Loss: -5.251
+INFO:root:Validation, Epoch: 71, Loss: -5.160
+INFO:root:Validation, Epoch: 72, Loss: -5.326
+INFO:root:Validation, Epoch: 73, Loss: -5.293
+INFO:root:Validation, Epoch: 74, Loss: -5.585
+INFO:root:Validation, Epoch: 75, Loss: -5.453
+INFO:root:Validation, Epoch: 76, Loss: -4.772
+INFO:root:Validation, Epoch: 77, Loss: -5.221
+INFO:root:Validation, Epoch: 78, Loss: -4.729
+INFO:root:Validation, Epoch: 79, Loss: -5.357
+INFO:root:Validation, Epoch: 80, Loss: -5.168
+INFO:root:Validation, Epoch: 81, Loss: -5.329
+INFO:root:Validation, Epoch: 82, Loss: -4.990
+INFO:root:Validation, Epoch: 83, Loss: -4.812
+INFO:root:Validation, Epoch: 84, Loss: -5.426
+INFO:root:Validation, Epoch: 85, Loss: -5.278
+INFO:root:Validation, Epoch: 86, Loss: -5.497
+INFO:root:Validation, Epoch: 87, Loss: -5.606
+INFO:root:Validation, Epoch: 88, Loss: -5.300
+INFO:root:Validation, Epoch: 89, Loss: -5.515
+INFO:root:Validation, Epoch: 90, Loss: -5.326
+INFO:root:Validation, Epoch: 91, Loss: -5.614
+INFO:root:Validation, Epoch: 92, Loss: -5.510
+INFO:root:Validation, Epoch: 93, Loss: -5.577
+INFO:root:Validation, Epoch: 94, Loss: -5.361
+INFO:root:Validation, Epoch: 95, Loss: -5.479
+INFO:root:Validation, Epoch: 96, Loss: -5.328
+INFO:root:Validation, Epoch: 97, Loss: -5.342
+INFO:root:Validation, Epoch: 98, Loss: -5.714
+INFO:root:Validation, Epoch: 99, Loss: -5.249
+INFO:root:Validation, Epoch: 100, Loss: -5.670
+INFO:root:Validation, Epoch: 101, Loss: -5.826
+INFO:root:Validation, Epoch: 102, Loss: -5.594
+INFO:root:Validation, Epoch: 103, Loss: -5.659
+INFO:root:Validation, Epoch: 104, Loss: -5.803
+INFO:root:Validation, Epoch: 105, Loss: -5.586
+INFO:root:Validation, Epoch: 106, Loss: -5.745
+INFO:root:Validation, Epoch: 107, Loss: -5.552
+INFO:root:Validation, Epoch: 108, Loss: -5.476
+INFO:root:Validation, Epoch: 109, Loss: -5.566
+INFO:root:Validation, Epoch: 110, Loss: -5.735
+INFO:root:Validation, Epoch: 111, Loss: -5.350
+INFO:root:Validation, Epoch: 112, Loss: -5.477
+INFO:root:Validation, Epoch: 113, Loss: -5.459
+INFO:root:Validation, Epoch: 114, Loss: -5.607
+INFO:root:Validation, Epoch: 115, Loss: -5.351
+INFO:root:Validation, Epoch: 116, Loss: -5.605
+INFO:root:Validation, Epoch: 117, Loss: -5.895
+INFO:root:Validation, Epoch: 118, Loss: -5.854
+INFO:root:Validation, Epoch: 119, Loss: -5.643
+INFO:root:Validation, Epoch: 120, Loss: -5.849
+INFO:root:Validation, Epoch: 121, Loss: -5.752
+INFO:root:Validation, Epoch: 122, Loss: -5.641
+INFO:root:Validation, Epoch: 123, Loss: -5.728
+INFO:root:Validation, Epoch: 124, Loss: -5.418
+INFO:root:Validation, Epoch: 125, Loss: -5.539
+INFO:root:Validation, Epoch: 126, Loss: -5.971
+INFO:root:Validation, Epoch: 127, Loss: -5.301
+INFO:root:Validation, Epoch: 128, Loss: -5.714
+INFO:root:Validation, Epoch: 129, Loss: -5.720
+INFO:root:Validation, Epoch: 130, Loss: -5.816
+INFO:root:Validation, Epoch: 131, Loss: -5.699
+INFO:root:Validation, Epoch: 132, Loss: -5.620
+INFO:root:Validation, Epoch: 133, Loss: -5.457
+INFO:root:Validation, Epoch: 134, Loss: -5.552
+INFO:root:Validation, Epoch: 135, Loss: -5.549
+INFO:root:Validation, Epoch: 136, Loss: -5.636
+INFO:root:Validation, Epoch: 137, Loss: -5.815
+INFO:root:Validation, Epoch: 138, Loss: -5.747
+INFO:root:Validation, Epoch: 139, Loss: -5.956
+INFO:root:Validation, Epoch: 140, Loss: -5.990
+INFO:root:Validation, Epoch: 141, Loss: -5.974
+INFO:root:Validation, Epoch: 142, Loss: -5.762
+INFO:root:Validation, Epoch: 143, Loss: -6.060
+INFO:root:Validation, Epoch: 144, Loss: -5.948
+INFO:root:Validation, Epoch: 145, Loss: -6.177
+INFO:root:Validation, Epoch: 146, Loss: -5.881
+INFO:root:Validation, Epoch: 147, Loss: -5.271
+INFO:root:Validation, Epoch: 148, Loss: -5.437
+INFO:root:Validation, Epoch: 149, Loss: -5.295
+INFO:root:Validation, Epoch: 150, Loss: -5.990
+INFO:root:Validation, Epoch: 151, Loss: -5.914
+INFO:root:Validation, Epoch: 152, Loss: -5.755
+INFO:root:Validation, Epoch: 153, Loss: -5.934
+INFO:root:Validation, Epoch: 154, Loss: -5.947
+INFO:root:Validation, Epoch: 155, Loss: -5.763
+INFO:root:Validation, Epoch: 156, Loss: -6.021
+INFO:root:Validation, Epoch: 157, Loss: -6.059
+INFO:root:Validation, Epoch: 158, Loss: -5.412
+INFO:root:Validation, Epoch: 159, Loss: -6.140
+INFO:root:Validation, Epoch: 160, Loss: -5.700
+INFO:root:Validation, Epoch: 161, Loss: -5.663
+INFO:root:Validation, Epoch: 162, Loss: -5.742
+INFO:root:Validation, Epoch: 163, Loss: -6.000
+INFO:root:Validation, Epoch: 164, Loss: -5.863
+INFO:root:Validation, Epoch: 165, Loss: -5.957
+INFO:root:Validation, Epoch: 166, Loss: -5.824
+INFO:root:Validation, Epoch: 167, Loss: -6.137
+INFO:root:Validation, Epoch: 168, Loss: -5.947
+INFO:root:Validation, Epoch: 169, Loss: -5.631
+INFO:root:Validation, Epoch: 170, Loss: -6.241
+INFO:root:Validation, Epoch: 171, Loss: -5.855
+INFO:root:Validation, Epoch: 172, Loss: -5.842
+INFO:root:Validation, Epoch: 173, Loss: -6.078
+INFO:root:Validation, Epoch: 174, Loss: -5.739
+INFO:root:Validation, Epoch: 175, Loss: -6.321
+INFO:root:Validation, Epoch: 176, Loss: -5.621
+INFO:root:Validation, Epoch: 177, Loss: -6.130
+INFO:root:Validation, Epoch: 178, Loss: -5.427
+INFO:root:Validation, Epoch: 179, Loss: -5.730
+INFO:root:Validation, Epoch: 180, Loss: -5.928
+INFO:root:Validation, Epoch: 181, Loss: -6.059
+INFO:root:Validation, Epoch: 182, Loss: -5.838
+INFO:root:Validation, Epoch: 183, Loss: -5.979
+INFO:root:Validation, Epoch: 184, Loss: -5.525
+INFO:root:Validation, Epoch: 185, Loss: -5.823
+INFO:root:Validation, Epoch: 186, Loss: -6.022
+INFO:root:Validation, Epoch: 187, Loss: -6.186
+INFO:root:Validation, Epoch: 188, Loss: -6.310
+INFO:root:Validation, Epoch: 189, Loss: -6.245
+INFO:root:Validation, Epoch: 190, Loss: -6.350
+INFO:root:Validation, Epoch: 191, Loss: -6.240
+INFO:root:Validation, Epoch: 192, Loss: -5.929
+INFO:root:Validation, Epoch: 193, Loss: -5.819
+INFO:root:Validation, Epoch: 194, Loss: -5.711
+INFO:root:Validation, Epoch: 195, Loss: -5.626
+INFO:root:Validation, Epoch: 196, Loss: -6.184
+INFO:root:Validation, Epoch: 197, Loss: -5.862
+INFO:root:Validation, Epoch: 198, Loss: -5.940
+INFO:root:Validation, Epoch: 199, Loss: -6.114
+INFO:root:Validation, Epoch: 200, Loss: -6.129
+INFO:root:Validation, Epoch: 201, Loss: -6.270
+INFO:root:Validation, Epoch: 202, Loss: -6.393
+INFO:root:Validation, Epoch: 203, Loss: -6.052
+INFO:root:Validation, Epoch: 204, Loss: -6.056
+INFO:root:Validation, Epoch: 205, Loss: -6.214
+INFO:root:Validation, Epoch: 206, Loss: -6.231
+INFO:root:Validation, Epoch: 207, Loss: -6.178
+INFO:root:Validation, Epoch: 208, Loss: -6.315
+INFO:root:Validation, Epoch: 209, Loss: -6.169
+INFO:root:Validation, Epoch: 210, Loss: -6.084
+INFO:root:Validation, Epoch: 211, Loss: -6.189
+INFO:root:Validation, Epoch: 212, Loss: -6.153
+INFO:root:Validation, Epoch: 213, Loss: -6.037
+INFO:root:Validation, Epoch: 214, Loss: -6.264
+INFO:root:Validation, Epoch: 215, Loss: -6.435
+INFO:root:Validation, Epoch: 216, Loss: -6.135
+INFO:root:Validation, Epoch: 217, Loss: -6.063
+INFO:root:Validation, Epoch: 218, Loss: -6.274
+INFO:root:Validation, Epoch: 219, Loss: -6.232
+INFO:root:Validation, Epoch: 220, Loss: -6.437
+INFO:root:Validation, Epoch: 221, Loss: -6.294
+INFO:root:Validation, Epoch: 222, Loss: -6.160
+INFO:root:Validation, Epoch: 223, Loss: -6.397
+INFO:root:Validation, Epoch: 224, Loss: -6.114
+INFO:root:Validation, Epoch: 225, Loss: -6.195
+INFO:root:Validation, Epoch: 226, Loss: -6.303
+INFO:root:Validation, Epoch: 227, Loss: -6.140
+INFO:root:Validation, Epoch: 228, Loss: -6.141
+INFO:root:Validation, Epoch: 229, Loss: -6.275
+INFO:root:Validation, Epoch: 230, Loss: -6.486
+INFO:root:Validation, Epoch: 231, Loss: -6.259
+INFO:root:Validation, Epoch: 232, Loss: -6.066
+INFO:root:Validation, Epoch: 233, Loss: -6.406
+INFO:root:Validation, Epoch: 234, Loss: -6.402
+INFO:root:Validation, Epoch: 235, Loss: -6.462
+INFO:root:Validation, Epoch: 236, Loss: -6.287
+INFO:root:Validation, Epoch: 237, Loss: -6.200
+INFO:root:Validation, Epoch: 238, Loss: -5.982
+INFO:root:Validation, Epoch: 239, Loss: -6.287
+INFO:root:Validation, Epoch: 240, Loss: -6.253
+INFO:root:Validation, Epoch: 241, Loss: -6.466
+INFO:root:Validation, Epoch: 242, Loss: -6.384
+INFO:root:Validation, Epoch: 243, Loss: -6.267
+INFO:root:Validation, Epoch: 244, Loss: -6.430
+INFO:root:Validation, Epoch: 245, Loss: -6.377
+INFO:root:Validation, Epoch: 246, Loss: -6.345
+INFO:root:Validation, Epoch: 247, Loss: -6.199
+INFO:root:Validation, Epoch: 248, Loss: -6.218
+INFO:root:Validation, Epoch: 249, Loss: -6.470
+INFO:root:Validation, Epoch: 250, Loss: -6.485
+INFO:root:Validation, Epoch: 251, Loss: -6.417
+INFO:root:Validation, Epoch: 252, Loss: -6.273
+INFO:root:Validation, Epoch: 253, Loss: -6.388
+INFO:root:Validation, Epoch: 254, Loss: -6.288
+INFO:root:Validation, Epoch: 255, Loss: -6.531
+INFO:root:Validation, Epoch: 256, Loss: -6.327
+INFO:root:Validation, Epoch: 257, Loss: -6.342
+INFO:root:Validation, Epoch: 258, Loss: -6.609
+INFO:root:Validation, Epoch: 259, Loss: -6.508
+INFO:root:Validation, Epoch: 260, Loss: -6.469
+INFO:root:Validation, Epoch: 261, Loss: -6.507
+INFO:root:Validation, Epoch: 262, Loss: -6.359
+INFO:root:Validation, Epoch: 263, Loss: -6.000
+INFO:root:Validation, Epoch: 264, Loss: -6.390
+INFO:root:Validation, Epoch: 265, Loss: -6.581
+INFO:root:Validation, Epoch: 266, Loss: -6.618
+INFO:root:Validation, Epoch: 267, Loss: -6.305
+INFO:root:Validation, Epoch: 268, Loss: -6.567
+INFO:root:Validation, Epoch: 269, Loss: -6.381
+INFO:root:Validation, Epoch: 270, Loss: -6.447
+INFO:root:Validation, Epoch: 271, Loss: -6.591
+INFO:root:Validation, Epoch: 272, Loss: -6.424
+INFO:root:Validation, Epoch: 273, Loss: -6.662
+INFO:root:Validation, Epoch: 274, Loss: -6.447
+INFO:root:Validation, Epoch: 275, Loss: -6.563
+INFO:root:Validation, Epoch: 276, Loss: -6.458
+INFO:root:Validation, Epoch: 277, Loss: -6.510
+INFO:root:Validation, Epoch: 278, Loss: -6.409
+INFO:root:Validation, Epoch: 279, Loss: -6.575
+INFO:root:Validation, Epoch: 280, Loss: -6.639
+INFO:root:Validation, Epoch: 281, Loss: -6.505
+INFO:root:Validation, Epoch: 282, Loss: -6.463
+INFO:root:Validation, Epoch: 283, Loss: -6.613
+INFO:root:Validation, Epoch: 284, Loss: -6.352
+INFO:root:Validation, Epoch: 285, Loss: -6.494
+INFO:root:Validation, Epoch: 286, Loss: -6.540
+INFO:root:Validation, Epoch: 287, Loss: -6.531
+INFO:root:Validation, Epoch: 288, Loss: -6.693
+INFO:root:Validation, Epoch: 289, Loss: -6.716
+INFO:root:Validation, Epoch: 290, Loss: -6.560
+INFO:root:Validation, Epoch: 291, Loss: -6.799
+INFO:root:Validation, Epoch: 292, Loss: -6.620
+INFO:root:Validation, Epoch: 293, Loss: -6.693
+INFO:root:Validation, Epoch: 294, Loss: -6.807
+INFO:root:Validation, Epoch: 295, Loss: -6.745
+INFO:root:Validation, Epoch: 296, Loss: -6.609
+INFO:root:Validation, Epoch: 297, Loss: -6.641
+INFO:root:Validation, Epoch: 298, Loss: -6.629
+INFO:root:Validation, Epoch: 299, Loss: -6.426
+INFO:root:Validation, Epoch: 300, Loss: -6.639
+INFO:root:Validation, Epoch: 301, Loss: -6.806
+INFO:root:Validation, Epoch: 302, Loss: -6.661
+INFO:root:Validation, Epoch: 303, Loss: -6.724
+INFO:root:Validation, Epoch: 304, Loss: -6.494
+INFO:root:Validation, Epoch: 305, Loss: -6.673
+INFO:root:Validation, Epoch: 306, Loss: -6.595
+INFO:root:Validation, Epoch: 307, Loss: -6.520
+INFO:root:Validation, Epoch: 308, Loss: -6.759
+INFO:root:Validation, Epoch: 309, Loss: -6.653
+INFO:root:Validation, Epoch: 310, Loss: -6.796
+INFO:root:Validation, Epoch: 311, Loss: -6.561
+INFO:root:Validation, Epoch: 312, Loss: -6.653
+INFO:root:Validation, Epoch: 313, Loss: -6.621
+INFO:root:Validation, Epoch: 314, Loss: -6.554
+INFO:root:Validation, Epoch: 315, Loss: -6.773
+INFO:root:Validation, Epoch: 316, Loss: -6.849
+INFO:root:Validation, Epoch: 317, Loss: -6.743
+INFO:root:Validation, Epoch: 318, Loss: -6.747
+INFO:root:Validation, Epoch: 319, Loss: -6.874
+INFO:root:Validation, Epoch: 320, Loss: -6.845
+INFO:root:Validation, Epoch: 321, Loss: -6.680
+INFO:root:Validation, Epoch: 322, Loss: -6.889
+INFO:root:Validation, Epoch: 323, Loss: -6.807
+INFO:root:Validation, Epoch: 324, Loss: -6.714
+INFO:root:Validation, Epoch: 325, Loss: -6.755
+INFO:root:Validation, Epoch: 326, Loss: -6.836
+INFO:root:Validation, Epoch: 327, Loss: -6.867
+INFO:root:Validation, Epoch: 328, Loss: -6.811
+INFO:root:Validation, Epoch: 329, Loss: -6.751
+INFO:root:Validation, Epoch: 330, Loss: -6.928
+INFO:root:Validation, Epoch: 331, Loss: -6.904
+INFO:root:Validation, Epoch: 332, Loss: -6.885
+INFO:root:Validation, Epoch: 333, Loss: -6.775
+INFO:root:Validation, Epoch: 334, Loss: -6.890
+INFO:root:Validation, Epoch: 335, Loss: -6.844
+INFO:root:Validation, Epoch: 336, Loss: -6.922
+INFO:root:Validation, Epoch: 337, Loss: -6.879
+INFO:root:Validation, Epoch: 338, Loss: -6.936
+INFO:root:Validation, Epoch: 339, Loss: -6.974
+INFO:root:Validation, Epoch: 340, Loss: -6.830
+INFO:root:Validation, Epoch: 341, Loss: -6.692
+INFO:root:Validation, Epoch: 342, Loss: -6.966
+INFO:root:Validation, Epoch: 343, Loss: -6.898
+INFO:root:Validation, Epoch: 344, Loss: -6.898
+INFO:root:Validation, Epoch: 345, Loss: -6.963
+INFO:root:Validation, Epoch: 346, Loss: -7.023
+INFO:root:Validation, Epoch: 347, Loss: -6.937
+INFO:root:Validation, Epoch: 348, Loss: -6.914
+INFO:root:Validation, Epoch: 349, Loss: -6.764
+INFO:root:Validation, Epoch: 350, Loss: -6.983
+INFO:root:Validation, Epoch: 351, Loss: -6.902
+INFO:root:Validation, Epoch: 352, Loss: -6.966
+INFO:root:Validation, Epoch: 353, Loss: -6.985
+INFO:root:Validation, Epoch: 354, Loss: -6.952
+INFO:root:Validation, Epoch: 355, Loss: -6.911
+INFO:root:Validation, Epoch: 356, Loss: -6.938
+INFO:root:Validation, Epoch: 357, Loss: -6.978
+INFO:root:Validation, Epoch: 358, Loss: -6.951
+INFO:root:Early stopping triggered.
+None
+training time: 343.6479296470061 minutes
