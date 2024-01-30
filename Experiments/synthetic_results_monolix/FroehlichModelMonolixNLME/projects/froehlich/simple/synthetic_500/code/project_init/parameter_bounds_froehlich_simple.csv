@@ -1,0 +1,12 @@
+id,method,lowerBound,upperBound,distribution,comment
+delta_pop,MLE,0,1.4142135623731,normal,synthetic
+gamma_pop,MLE,-1,1.4142135623731,normal,synthetic
+km0scale_pop,MLE,5,3.16227766016838,normal,synthetic
+tBegin_pop,MLE,0,1,normal,synthetic
+offset_pop,MLE,1,2.23606797749979,normal,synthetic
+omega_delta,MLE,1.4142135623731,1.4142135623731,uniform,synthetic
+omega_gamma,MLE,1.4142135623731,1.4142135623731,uniform,synthetic
+omega_km0scale,MLE,3.16227766016838,3.16227766016838,uniform,synthetic
+omega_tBegin,MLE,1,1,uniform,synthetic
+omega_offset,MLE,5,5,uniform,synthetic
+a,MLE,0.367879441171442,0.367879441171442,uniform,synthetic

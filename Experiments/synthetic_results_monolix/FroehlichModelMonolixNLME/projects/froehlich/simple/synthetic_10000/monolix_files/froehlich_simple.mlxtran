@@ -1,0 +1,67 @@
+<DATAFILE>
+
+[FILEINFO]
+file='froehlich_simple/data.csv'
+delimiter = comma
+header={variable, time, observable, value, ignoredObs}
+
+[CONTENT]
+variable = {use=identifier}
+time = {use=time}
+observable = {use=observationtype}
+value = {use=observation, yname='y', type=continuous}
+ignoredObs = {use=missingdependentvariable}
+
+[SETTINGS]
+dataType = {'y'=plasma}
+
+<MODEL>
+
+[INDIVIDUAL]
+input = {delta_pop, omega_delta, gamma_pop, omega_gamma, km0scale_pop, omega_km0scale, offset_pop, omega_offset, tBegin_pop, omega_tBegin}
+
+DEFINITION:
+delta = {distribution=normal, typical=delta_pop, sd=omega_delta}
+gamma = {distribution=normal, typical=gamma_pop, sd=omega_gamma}
+km0scale = {distribution=normal, typical=km0scale_pop, sd=omega_km0scale}
+offset = {distribution=normal, typical=offset_pop, sd=omega_offset}
+tBegin = {distribution=normal, typical=tBegin_pop, sd=omega_tBegin}
+
+[LONGITUDINAL]
+input = {a}
+
+file = 'froehlich_simple/model.mlx'
+
+DEFINITION:
+y_ = {distribution=normal, prediction=y, errorModel=constant(a)}
+
+<FIT>
+data = 'y'
+model = y_
+
+<PARAMETER>
+a = {value=0.367879441171442, method=MLE}
+delta_pop = {value=0, method=MLE}
+gamma_pop = {value=-1, method=MLE}
+km0scale_pop = {value=5, method=MLE}
+offset_pop = {value=1, method=MLE}
+omega_delta = {value=1.4142135623731, method=MLE}
+omega_gamma = {value=1.4142135623731, method=MLE}
+omega_km0scale = {value=3.16227766016838, method=MLE}
+omega_offset = {value=5, method=MLE}
+omega_tBegin = {value=1, method=MLE}
+tBegin_pop = {value=0, method=MLE}
+
+<MONOLIX>
+
+[TASKS]
+populationParameters()
+individualParameters(method = {conditionalMean, conditionalMode })
+fim(run = false,method = StochasticApproximation)
+logLikelihood(run = false,method = ImportanceSampling)
+plotResult(method = {indfits, obspred, vpc, parameterdistribution, covariatemodeldiagnosis, randomeffects, covariancemodeldiagnosis, residualsscatter, residualsdistribution, saemresults })
+
+[SETTINGS]
+GLOBAL:
+exportpath = 'froehlich_simple'
+

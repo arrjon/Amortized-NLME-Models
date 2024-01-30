@@ -1,0 +1,32 @@
+DESCRIPTION: This is a model from FroehlichReiser2018
+
+[LONGITUDINAL]
+input={
+    delta,
+    gamma,
+    km0scale,
+    tBegin,
+    offset
+}
+
+EQUATION:
+m_0 = 1
+p_0 = 0
+
+; Beginning of reaction
+if t < exp(tBegin)
+    start = 0
+else
+    start = 1
+end
+
+; ODEs
+ddt_m = start*(-exp(delta) * m) 
+ddt_p = start*(exp(km0scale) * m - exp(gamma) * p)
+
+; Observable
+offset2 = exp(offset)
+y = log(p + offset2)
+
+OUTPUT:
+output = {y}

@@ -1,0 +1,47 @@
+model froehlich_detailed
+
+compartment comp1
+
+# Define species
+species m
+species p
+species e
+species r
+
+# Species init
+m = 1
+p = 0
+e = exp(e0_m0)
+r = exp(r0_m0)
+
+# Parameters to estimate
+delta1m0 = -1
+delta2 = -1
+e0_m0 = -1
+k2m0scale = 12
+k2 = -1
+k1m0 = 1
+r0_m0 = -1
+gammaPar = -6
+tBegin = 0
+offset = 0
+
+# Beginning of reaction
+start = 0
+
+# Reactions
+enyzme_binding: m + e -> em ; start * (exp(delta1m0) * m * e)
+enzyme_unbinding: em -> e ; start * (exp(delta2) * (exp(e0_m0) - e))
+ribosome_binding: m + r -> rm; start * (exp(k1m0) * m * r)
+ribosome_unbinding: rm -> m ; start * (exp(k2) * (exp(r0_m0) - r))
+ribosome_unbinding2: rm -> r ; start * (exp(k2) * (exp(r0_m0) - r))
+protein_translation: m + r -> m + r + p; start * (exp(k2m0scale) * (exp(r0_m0) - r))
+protein_degradation: p -> ; start * (exp(gammaPar) * p)
+
+# Events
+reaction_start: at (time >= exp(tBegin)): start = 1
+
+# Observables
+y := log(p + exp(offset))
+
+end

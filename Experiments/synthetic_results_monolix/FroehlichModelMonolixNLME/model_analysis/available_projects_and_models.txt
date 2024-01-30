@@ -1,0 +1,14 @@
+froehlich/detailed/synthetic_50
+froehlich/detailed/synthetic_100
+froehlich/detailed/synthetic_200
+froehlich/detailed/synthetic_500
+froehlich/detailed/synthetic_1000
+froehlich/detailed/synthetic_5000
+froehlich/detailed/synthetic_10000
+froehlich/simple/synthetic_50
+froehlich/simple/synthetic_100
+froehlich/simple/synthetic_200
+froehlich/simple/synthetic_500
+froehlich/simple/synthetic_1000
+froehlich/simple/synthetic_5000
+froehlich/simple/synthetic_10000
