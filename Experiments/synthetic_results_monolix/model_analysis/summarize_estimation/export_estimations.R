@@ -65,12 +65,21 @@ populationParameters$run <- gsub("run_", "", populationParameters$run)
 populationParameters$run <- factor(populationParameters$run, levels = orderedRunIds)
 populationParameters <- populationParameters[order(populationParameters$run), ]
 
+# Standard errors
+standardErrors <- read.csv(file.path(resultsFolder, "standard_errors.csv"))
+# Replace "se_run_" in column names with "run_"
+colnames(standardErrors) <- gsub("se_run_", "run_", colnames(standardErrors))
+# Sort columns by `ordererRunIds`
+colLevels <- factor(colnames(standardErrors), levels = c("X", paste0("run_", orderedRunIds)))
+standardErrors <- standardErrors[, order(colLevels)]
+
 # Save all data frames to `analysisBase`/other
 model <- tail(strsplit(model, "/")[[1]], 1)
 otherFolder <- file.path(analysisBase, "other")
 write.csv(likelihoods, file.path(otherFolder, paste0(model, "_likelihoods.csv")), row.names = FALSE)
 write.csv(walltimes, file.path(otherFolder, paste0(model, "_walltimes.csv")), row.names = FALSE)
 write.csv(populationParameters, file.path(otherFolder, paste0(model, "_population_parameters.csv")), row.names = FALSE)
+write.csv(standardErrors, file.path(otherFolder, paste0(model, "_standard_errors.csv")), row.names = FALSE)
 
 # Zip all exported files and make archive name equal to last bit of `model`
 # Save archive in `analysisBase`/other

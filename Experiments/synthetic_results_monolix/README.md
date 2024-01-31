@@ -1,5 +1,5 @@
 # Readme
-This repository contains all necessary information to reproduce the parameter estimation results obtained with Monolix (Monolix 2023R1, Lixoft SAS, a Simulations Plus company).
+This repository is associated with the paper "An amortized approach to non-linear mixed-effects modeling based on neural posterior estimation". It contains all necessary information to reproduce the parameter estimation results obtained with Monolix (Monolix 2023R1, Lixoft SAS, a Simulations Plus company).
 
 ## General information about the setup
 To facilitate reproducibility, perform multistart optimizations and enable headless operation of Monolix, we installed Monolix and all depedencies of this project in an Ubuntu Docker container. We then interfaced with Monolix using their R library called `lixoftConnectors`. Additionally, we wrote a custom R library that mainly enables multistart optimization and saving of the results of each start. This library is called `monolixScRipts` and can be found in `miscellaneous_R_packages/`. Since the library was started for our specific usecase, it is not documented well, yet.
