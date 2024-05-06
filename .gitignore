@@ -179,4 +179,4 @@ cython_debug/
 !/networks/log training/fröhlich*
 !/networks/log presimulation/pharma/
 !/networks/log training/pharma/
-
+/zenodo/
