@@ -169,7 +169,6 @@ cython_debug/
 .idea
 /Experiments/sampling_results/
 /Experiments/empirical_bayes_results/
-/Experiments/results_nonmem/
 /networks/*
 !/networks/amortizer-detailed-fro-sequence-summary-Bi-LSTM-7layers-2coupling-spline-500epochs/*
 !/networks/amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-500epochs/*
