@@ -177,6 +177,6 @@ cython_debug/
 /networks/measure_presimulation_time.py
 /networks/log presimulation/fröhlich*
 /networks/log training/fröhlich*
-/networks/log presimulation/pharma/
-/networks/log training/pharma/
+/networks/log presimulation/pharma/*
+/networks/log training/pharma/*
 
