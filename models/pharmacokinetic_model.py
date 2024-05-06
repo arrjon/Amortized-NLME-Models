@@ -237,7 +237,7 @@ class PharmacokineticModel(NlmeBaseAmortizer):
         # load best
         if load_best:
             model_idx = 5
-            # amortizer-pharma-split-sequence-summary-Bi-LSTM-8layers-2coupling-spline-750epochs -> 5
+            # amortizer-pharma-split-sequence-summary-Bi-LSTM-8layers-2coupling-spline-500epochs -> 5
 
         summary_network_type = ['sequence', 'split-sequence']
         bidirectional_LSTM = [True, False]
@@ -946,3 +946,37 @@ def get_covariates() -> (float, float):
                            72.0, 96.0, 75.0])
     dos = np.random.choice([50.0, 37.5, 25.0])
     return wt, dos
+
+
+def write_data_to_csv(obs_data: list):
+    # iterate over individuals and create pd data frame
+
+    for i, obs in enumerate(obs_data):
+        y, t_measurements, doses_time_points, dos, wt = convert_bf_to_observables(obs)
+        if i == 0:
+            df = pd.DataFrame(y, columns=['y2', 'y3'])
+            df['time'] = t_measurements
+            df['wt'] = wt
+            df['individual_id'] = i
+
+            df_dose = pd.DataFrame(np.concatenate(([0], doses_time_points)), columns=['time'])
+            df_dose['dosage'] = dos
+            df_dose['individual_id'] = i
+        else:
+            df_i = pd.DataFrame(y, columns=['y2', 'y3'])
+            df_i['time'] = t_measurements
+            df_i['wt'] = wt
+            df_i['individual_id'] = i
+            df = pd.concat([df, df_i])
+
+            df_i_dose = pd.DataFrame(np.concatenate(([0], doses_time_points)), columns=['time'])
+            df_i_dose['dosage'] = dos
+            df_i_dose['individual_id'] = i
+            df_dose = pd.concat([df_dose, df_i_dose])
+
+    df.reset_index(inplace=True, drop=True)
+    df_dose.reset_index(inplace=True, drop=True)
+
+    df.to_csv('../data/pharma/pharmacokinetic_data.csv', index=False)
+    df_dose.to_csv('../data/pharma/pharmacokinetic_dose.csv', index=False)
+    return

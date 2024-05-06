@@ -134,7 +134,8 @@ def batch_simulator(param_batch: np.ndarray,
 
 
 class FroehlichModelSimple(NlmeBaseAmortizer):
-    def __init__(self, name: str = 'SimpleFroehlichModel', network_idx: int = -1, load_best: bool = False):
+    def __init__(self, name: str = 'SimpleFroehlichModel', network_idx: int = -1, load_best: bool = False,
+                 prior_type: str = 'normal'):
         # define names of parameters
         param_names = ['$\delta$', '$\gamma$', '$k m_0$-scale', '$t_0$', 'offset', '$\sigma$']
 
@@ -142,13 +143,20 @@ class FroehlichModelSimple(NlmeBaseAmortizer):
         prior_mean = np.array([-3., -3., 5., 0., 0., -1.])
         prior_cov = np.diag([5., 5., 11., 2., 6., 2.])
 
+        if prior_type == 'normal_2':
+            prior_cov = np.diag(prior_cov.diagonal() ** 2)
+            prior_type = 'normal'
+
+        self.prior_bounds = np.stack((prior_mean - 4 * np.sqrt(np.diag(prior_cov)),
+                                      prior_mean + 4 * np.sqrt(np.diag(prior_cov)))).T
+
         super().__init__(name=name,
                          network_idx=network_idx,
                          load_best=load_best,
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         prior_type='normal',
+                         prior_type=prior_type,
                          max_n_obs=180)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,

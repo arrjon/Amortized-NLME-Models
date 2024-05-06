@@ -114,6 +114,10 @@ def run_population_optimization(
             assert covariates_bounds.shape[0] == n_covariates_params, \
                 "covariates_bounds should be a 2d array with shape (2, n_covariates)"
 
+    # set up fixed parameters to be unique
+    x_fixed_indices, unique_indices = np.unique(np.array(x_fixed_indices), return_index=True)
+    x_fixed_vals = np.array(x_fixed_vals)[unique_indices]
+
     # save optimizer trace
     history_options = HistoryOptions(trace_record=trace_record)
 
@@ -142,6 +146,7 @@ def run_population_optimization(
     else:
         n_old_runs = 0
 
+    pesto_problem = None
     for run_idx in tqdm(range(n_old_runs, n_old_runs + n_runs), disable=not verbose, desc='Multi-start optimization'):
         # run optimization for each starting point with different objective functions (due to sampling)
         # if pesto_multi_processes > 1, same objective function is used for all starting points
@@ -211,4 +216,7 @@ def run_population_optimization(
     # update objective function with fewer samples (for faster evaluation, e.g. profiling)
     param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
     obj_fun_amortized.update_param_samples(param_samples=param_samples)
-    return result, obj_fun_amortized
+    if pesto_problem is not None:
+        pesto_problem.objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
+    return result, obj_fun_amortized, pesto_problem
+

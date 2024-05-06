@@ -183,7 +183,7 @@ def create_fixed_params(fix_names: list, fixed_values: list,
 def compute_error_estimate(results: np.ndarray,
                            true_parameters: np.ndarray,
                            relative_error: bool = False,
-                           bi_modal: bool = False) -> np.ndarray:
+                           bi_modal: Optional[np.ndarray] = None) -> np.ndarray:
     if results.ndim == 1:
         results = results[np.newaxis, :]
 
@@ -191,14 +191,14 @@ def compute_error_estimate(results: np.ndarray,
     temp_results = results.copy()
     assert true_parameters.size == results.shape[1], 'true_parameters and results must have the same size'
 
-    if bi_modal:
+    if bi_modal is not None:
         # handle the bimodal distributions, both modes are equally acceptable
         # check which mode is in the reference
         first_param_larger = reference[0] > reference[1]
         for r_i, res in enumerate(temp_results):
             if (res[0] > res[1]) != first_param_larger:
                 # switch modes
-                temp_results[r_i, [0, 1, 6, 7]] = temp_results[r_i, [1, 0, 7, 6]]
+                temp_results[r_i, bi_modal[0]] = temp_results[r_i, bi_modal[1]]
 
     if relative_error:  # error per run
         error = np.mean((temp_results - reference) ** 2 / (reference ** 2), axis=1)
