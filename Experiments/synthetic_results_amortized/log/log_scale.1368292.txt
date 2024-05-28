@@ -1,0 +1,84 @@
+2023-12-25 16:14:49.471830: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-12-25 16:14:49.810705: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcudart.so.11.0'; dlerror: libcudart.so.11.0: cannot open shared object file: No such file or directory
+2023-12-25 16:14:49.810750: I tensorflow/compiler/xla/stream_executor/cuda/cudart_stub.cc:29] Ignore above cudart dlerror if you do not have a GPU set up on your machine.
+2023-12-25 16:14:51.050476: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
+2023-12-25 16:14:51.051042: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
+2023-12-25 16:14:51.051049: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+2023-12-25 16:14:54.193360: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libcuda.so.1'; dlerror: libcuda.so.1: cannot open shared object file: No such file or directory
+2023-12-25 16:14:54.193605: W tensorflow/compiler/xla/stream_executor/cuda/cuda_driver.cc:265] failed call to cuInit: UNKNOWN ERROR (303)
+2023-12-25 16:14:54.193627: I tensorflow/compiler/xla/stream_executor/cuda/cuda_diagnostics.cc:156] kernel driver does not appear to be running on this host (cn03): /proc/driver/nvidia/version does not exist
+2023-12-25 16:14:54.194078: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+INFO:root:Performing 2 pilot runs with the SimpleFroehlichModel model...
+INFO:root:Shape of parameter batch after 2 pilot simulations: (batch_size = 2, 6)
+INFO:root:Shape of simulation batch after 2 pilot simulations: (batch_size = 2, 180, 1)
+INFO:root:No optional prior non-batchable context provided.
+INFO:root:No optional prior batchable context provided.
+INFO:root:No optional simulation non-batchable context provided.
+INFO:root:No optional simulation batchable context provided.
+INFO:root:Loaded loss history from networks/amortizer-simple-fro-sequence-summary-Bi-LSTM-6layers-2coupling-spline-500epochs/history_416.pkl.
+INFO:root:Networks loaded from networks/amortizer-simple-fro-sequence-summary-Bi-LSTM-6layers-2coupling-spline-500epochs/ckpt-416
+INFO:root:Performing a consistency check with provided components...
+INFO:root:Done.
+using 2 layers of MultiConv1D, a bidirectional LSTM with 256 units and a dense layer with output dimension 12 as summary network
+using a 6-layer cINN as inference network with 2 layers of design spline
+prior mean: [-3. -3.  5.  0.  0. -1.]
+prior covariance diagonal: [ 5.  5. 11.  2.  6.  2.]
+Using the model SimpleFroehlichModel
+Model: "amortized_posterior"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ invertible_network (Inverti  multiple                 450420    
+ bleNetwork)                                                     
+                                                                 
+ sequence_network (SequenceN  multiple                 605484    
+ etwork)                                                         
+                                                                 
+=================================================================
+Total params: 1,055,904
+Trainable params: 1,055,832
+Non-trainable params: 72
+_________________________________________________________________
+None
+50 samples
+100 individuals
+['pop-$\\delta$', 'pop-$\\gamma$', 'pop-$k m_0$-scale', 'pop-$t_0$', 'pop-offset', 'pop-$\\sigma$', 'var-$\\delta$', 'var-$\\gamma$', 'var-$k m_0$-scale', 'var-$t_0$', 'var-offset', 'var-$\\sigma$']
+## Optimization Result 
+
+* number of starts: 100 
+* best value: -1431.2054568635886, id=batch_82_0
+* worst value: -1427.5318953375413, id=batch_1_0
+* number of non-finite values: 0
+
+* execution time summary:
+	* Mean execution time: 1.742s
+	* Maximum execution time: 3.079s,	id=batch_0_0
+	* Minimum execution time: 1.012s,	id=batch_3_0
+* summary of optimizer messages:
+
+  |   Count | Message                                         |
+  |--------:|:------------------------------------------------|
+  |     100 | CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH |
+
+* best value found (approximately) 1 time(s)
+* number of plateaus found: 4
+
+A summary of the best run:
+
+### Optimizer Result
+
+* optimizer used: <ScipyOptimizer method=L-BFGS-B options={'disp': False, 'maxfun': 1000}>
+* message: CONVERGENCE: REL_REDUCTION_OF_F_<=_FACTR*EPSMCH 
+* number of evaluations: 160
+* time taken to optimize: 1.754s
+* startpoint: [-8.35888223 -5.65230574 10.4559941   2.89826089  0.42385374 -4.64529236
+ -4.00525291 -5.68834388  3.72331745 -0.50795779 -1.05513571]
+* endpoint: [-6.56541792 -0.66741549  6.22015685 -0.23594366  2.07875309 -3.47435764
+ -1.62940152 -0.04656104  5.73160823  2.10295704  6.90775528]
+* final objective value: -1431.2054568635886
+* final gradient value: [ 2.32171260e-03 -9.40895006e-03  4.55527243e-02  2.39929250e-02
+ -1.71189413e-01  1.50562755e-01  3.82588041e-02  3.91992216e-04
+  8.00105227e-03 -1.55887392e-03 -2.22879537e+01]
+

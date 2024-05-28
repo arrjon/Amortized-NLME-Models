@@ -84,11 +84,15 @@ def batch_simulator(param_batch: np.ndarray,
     # starting values
     x0 = np.array([0.0, 0.0, 0.0, 0.0, 1.0])
 
+    # first dosing event is expected to be at t=0
+    y_zeros = np.zeros(np.sum(t_measurements < t_doses[0]))
+    t_simulate = t_measurements[t_measurements >= t_doses[0]] - t_doses[0]
+
     # convert to julia types
     jl_x0 = jlconvert(jl.Vector[jl.Float64], x0)
     jl_dose_amount = jlconvert(jl.Float64, dose_amount)
-    jl_dosetimes = jlconvert(jl.Vector[jl.Float64], t_doses)
-    jl_t_measurement = jlconvert(jl.Vector[jl.Float64], t_measurements)
+    jl_dosetimes = jlconvert(jl.Vector[jl.Float64], t_doses[1:] - t_doses[0])
+    jl_t_measurement = jlconvert(jl.Vector[jl.Float64], t_simulate)
 
     # simulate batch
     if param_batch.ndim == 1:  # so not (batch_size, params)
@@ -111,6 +115,7 @@ def batch_simulator(param_batch: np.ndarray,
         y_sim = jl.simulateSmallClairon(jl_parameter, jl_x0,
                                         jl_dose_amount, jl_dosetimes,
                                         jl_t_measurement).to_numpy()
+        y_sim = np.concatenate((y_zeros, y_sim))
 
         # apply noise
         if with_noise:
@@ -229,38 +234,6 @@ class ClaironSmallModel(NlmeBaseAmortizer):
         self.simulator = Simulator(batch_simulator_fun=batch_simulator_fun)
 
         print(f'Using the model {name}')
-
-    def _build_prior(self) -> None:
-        """
-        Build prior distribution.
-        Returns: prior, configured_input - prior distribution and function to configure input
-
-        """
-        if self.prior_type == 'uniform':
-            print('Using uniform prior')
-            print(self.prior_bounds)
-            self.prior = Prior(batch_prior_fun=partial(batch_uniform_prior,
-                                                       prior_bounds=self.prior_bounds),
-                               param_names=self.log_param_names)
-            self.prior_mean = (np.diff(self.prior_bounds) / 2).flatten() + self.prior_bounds[:, 0]
-            self.prior_std = (np.diff(self.prior_bounds) / 2).flatten() ** 2 / 12  # uniform variance
-            self.prior_cov = np.diag(self.prior_std ** 2)
-
-        elif self.prior_type == 'normal':
-            print('Using normal prior')
-            print('prior mean:', self.prior_mean)
-            print('prior covariance diagonal:', self.prior_cov.diagonal())
-            self.prior = Prior(batch_prior_fun=partial(batch_gaussian_prior,
-                                                       mean=self.prior_mean,
-                                                       cov=self.prior_cov),
-                               param_names=self.log_param_names)
-        else:
-            raise ValueError('Unknown prior type')
-
-        self.configured_input = partial(configure_input,
-                                        prior_means=self.prior_mean,
-                                        prior_stds=self.prior_std)
-        return
 
     def load_amortizer_configuration(self, model_idx: int = 0, load_best: bool = False) -> str:
         self.n_epochs = 500

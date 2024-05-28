@@ -5,21 +5,29 @@ However, fitting these models is computationally challenging when the descriptio
 To address this issue, we propose the use of neural density estimation to approximate individual-specific posterior distributions in an amortized fashion. 
 This approximation is then used to efficiently infer population-level parameters.
 
-More details on the method can be found in the preprint: https://doi.org/10.1101/2023.08.22.554273
+More details on the method can be found in the preprint [Arruda et al. (2023)](https://doi.org/10.1101/2023.08.22.554273).
 
+In the folder `Examples` you can find a notebook `Amortized NLME Simulation & Training` which shows how to train the 
+neural posterior estimator. 
+The notebook `Amortized NLME Inference` shows how to use the trained neural posterior estimator for inference of a NLME model.
+
+In the folder `Experiments` you can find the code for the experiments of the paper, to reproduce the results and generate the plots.
+The trained neural networks for these experiments are in `networks`.
 
 Below you find a step-by-step guide to use the Amortized-NLME-Models package.
 The package is still under development and will be extended in the future.
 If you have any questions or suggestions, please contact us.
 
+
 ## Installation
 You can install the two main dependencies using the package manager [pip](https://pip.pypa.io/en/stable/):
 - [BayesFlow](https://bayesflow.org): `pip install bayesflow` 
-- [PyPesto](https://pypesto.readthedocs.io): `pip install pypesto`
+- [pyPesto](https://pypesto.readthedocs.io): `pip install pypesto`
 
 Then you can clone the AmortizedNLME package using the `git clone`.
 
 ## Simulation and Training Phase using BayesFlow
+
 Import the necessary packages
 ```
 import numpy as np

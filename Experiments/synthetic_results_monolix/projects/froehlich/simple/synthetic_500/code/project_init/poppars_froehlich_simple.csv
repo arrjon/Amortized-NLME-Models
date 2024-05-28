@@ -1,0 +1,12 @@
+name,initialValue,method,priorValue,priorSD,distribution,variability,min,max,source
+delta_pop,0,MLE,,,normal,TRUE,0,0,synthetic
+gamma_pop,-1,MLE,,,normal,TRUE,-1,-1,synthetic
+km0scale_pop,5,MLE,,,normal,TRUE,5,5,synthetic
+tBegin_pop,0,MLE,,,normal,TRUE,0,0,synthetic
+offset_pop,1,MLE,,,normal,TRUE,1,1,synthetic
+omega_delta,1.4142135623731,MLE,,,,,,,synthetic
+omega_gamma,1.4142135623731,MLE,,,,,,,synthetic
+omega_km0scale,3.16227766016838,MLE,,,,,,,synthetic
+omega_tBegin,1,MLE,,,,,,,synthetic
+omega_offset,5,MLE,,,,,,,synthetic
+a,0.367879441171442,MLE,,,,,,,synthetic

@@ -213,7 +213,7 @@ class ObjectiveFunctionNLME:
                 'every covariate must have a parameter (can be fixed)'
             args = list(signature(covariate_mapping).parameters.keys())
             assert 'beta' in args, 'to use a covariate mapping the argument "beta" is expected'
-            assert 'psi_inverse' in args, 'to use covariate mapping the argument "psi_inverse" is expected'
+            assert 'psi_inverse_vector' in args, 'to use covariate mapping the argument "psi_inverse_vector" is expected'
             assert 'covariates' in args, 'to use a covariate mapping the argument "covariates" is expected'
             assert 'covariates_params' in args, ('to use a covariate mapping the argument "covariates_params" '
                                                  'is expected')
@@ -309,7 +309,7 @@ class ObjectiveFunctionNLME:
         """wrapper function to compute log-sum-exp of second term in objective function with numba"""
 
         # beta_transformed is per simulation
-        if not self.use_njit:
+        if not self.use_njit and beta_transformed is not None:
             # we need beta_transformed in the form of simulation x samples
             beta_transformed = np.repeat(beta_transformed, self.n_samples, axis=0)
 
@@ -374,7 +374,7 @@ class ObjectiveFunctionNLME:
             # beta transformed is now a mean depending on the covariates, thus changing for every data point
             transformed_params = self.covariate_mapping(
                 beta=beta.copy(),
-                psi_inverse=psi_inverse.copy(),
+                psi_inverse_vector=psi_inverse_vector.copy(),
                 covariates=self.covariates,
                 covariates_params=covariates_params
             )
@@ -430,7 +430,7 @@ class ObjectiveFunctionNLME:
             # beta transformed is now a mean depending on the covariates, thus changing for every data point
             transformed_params = self.covariate_mapping(
                 beta=beta.copy(),
-                psi_inverse=psi_inverse.copy(),
+                psi_inverse_vector=psi_inverse_vector.copy(),
                 covariates=self.covariates,
                 covariates_params=covariates_params
             )
@@ -440,10 +440,6 @@ class ObjectiveFunctionNLME:
                 beta_transformed, psi_inverse_transformed = transformed_params
             else:
                 beta_transformed, psi_inverse_transformed = transformed_params, None
-
-            # beta_transformed is per simulation
-            # we need them in the form of simulation x samples
-            beta_transformed = np.repeat(beta_transformed, self.n_samples, axis=0)
         else:
             beta_transformed, psi_inverse_transformed = None, None
 

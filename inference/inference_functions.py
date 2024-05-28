@@ -104,28 +104,11 @@ def run_population_optimization(
                                               use_njit=use_njit
                                               )
     # set up pyPesto
-    # create param names from list respecting the parameterization
-    if param_names is not None:
-        param_names_opt = create_param_names_opt(
-            dim=individual_model.amortizer.latent_dim,
-            cov_type=cov_type,
-            param_names=param_names
-        )
-    else:
-        param_names_opt = None
-
+    param_names_opt = create_param_names_opt(dim=individual_model.amortizer.latent_dim,
+                                             cov_type=cov_type,
+                                             param_names=param_names)
     # create bounds if none are given
     if param_bounds is None:
-        if n_covariates_params > 0:
-            assert covariates_bounds is not None, 'bounds for covariates must be given '
-            assert covariates_bounds.shape[0] == n_covariates_params, ('bounds for covariates must have same dimension'
-                                                                       'as numbers of covariates')
-        if n_joint_params > 0:
-            assert joint_model_bounds is not None, 'bounds for joint model params must be given '
-            assert joint_model_bounds.shape[0] == n_joint_params, (
-                    'bounds for covariates must have same dimension'
-                    'as numbers of covariates')
-
         # automatically create boundaries
         param_bounds = create_boundaries_from_prior(
             prior_mean=individual_model.prior_mean,
@@ -147,7 +130,17 @@ def run_population_optimization(
             assert covariates_bounds.shape[0] == n_covariates_params, \
                 "covariates_bounds should be a 2d array with shape (2, n_covariates)"
 
-    # save optimizer trace if specified, helpful for convergence assessment
+        if n_joint_params > 0:
+            assert joint_model_bounds is not None, 'bounds for joint model params must be given '
+            assert joint_model_bounds.shape[0] == n_joint_params, (
+                    'bounds for covariates must have same dimension'
+                    'as numbers of covariates')
+
+    # set up fixed parameters to be unique
+    x_fixed_indices, unique_indices = np.unique(np.array(x_fixed_indices), return_index=True)
+    x_fixed_vals = np.array(x_fixed_vals)[unique_indices]
+
+    # save optimizer trace
     history_options = HistoryOptions(trace_record=trace_record)
 
     if pesto_multi_processes > 1:
@@ -175,6 +168,7 @@ def run_population_optimization(
     else:
         n_old_runs = 0
 
+    pesto_problem = None
     for run_idx in tqdm(range(n_old_runs, n_old_runs + n_runs), disable=not verbose, desc='Multi-start optimization'):
         # run optimization for each starting point with different objective functions (due to sampling)
         # if pesto_multi_processes > 1, same objective function is used for all starting points
@@ -244,4 +238,7 @@ def run_population_optimization(
     # update objective function with fewer samples (for faster evaluation, e.g. profiling)
     param_samples = individual_model.draw_posterior_samples(data=data, n_samples=n_samples_opt)
     obj_fun_amortized.update_param_samples(param_samples=param_samples)
-    return result, obj_fun_amortized
+    if pesto_problem is not None:
+        pesto_problem.objective = FD(obj=Objective(fun=obj_fun_amortized, x_names=param_names_opt))
+    return result, obj_fun_amortized, pesto_problem
+

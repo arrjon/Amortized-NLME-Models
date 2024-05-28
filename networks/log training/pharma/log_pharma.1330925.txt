@@ -1,0 +1,127 @@
+2023-11-19 01:21:08.668925: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-11-19 01:21:09.689933: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
+2023-11-19 01:21:09.690059: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
+2023-11-19 01:21:09.690065: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+2023-11-19 01:21:38.322322: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-11-19 01:21:38.713747: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1613] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 38402 MB memory:  -> device: 0, name: NVIDIA A100-PCIE-40GB, pci bus id: 0000:21:00.0, compute capability: 8.0
+INFO:root:Performing 2 pilot runs with the PharmacokineticModel model...
+INFO:root:Shape of parameter batch after 2 pilot simulations: (batch_size = 2, 11)
+INFO:root:Shape of simulation batch after 2 pilot simulations: (batch_size = 2, 37, 4)
+INFO:root:No optional prior non-batchable context provided.
+INFO:root:No optional prior batchable context provided.
+INFO:root:No optional simulation non-batchable context provided.
+INFO:root:No optional simulation batchable context provided.
+INFO:root:Initialized empty loss history.
+INFO:root:Initialized networks from scratch.
+INFO:root:Performing a consistency check with provided components...
+2023-11-19 01:21:54.938482: I tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:630] TensorFloat-32 will be used for the matrix multiplication. This will only be logged once.
+2023-11-19 01:21:55.053029: I tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:428] Loaded cuDNN version 8303
+INFO:root:Done.
+[PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU'), PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+training on gpu
+using 2 layers of MultiConv1D, a  LSTM with 256 units and a dense layer with output dimension 22 as summary network
+using a 8-layer cINN as inference network with 2 layers of design spline
+prior mean: [-5.   6.5  2.5  2.5  6.5  0.   6.5 -3.  -1.  -1.   0. ]
+prior covariance diagonal: [4.5 1.  1.  1.  1.  1.  1.  4.5 2.  2.  1. ]
+Using the PharmacokineticModel
+amortizer-pharma-sequence-summary-LSTM-8layers-2coupling-spline-750epochs
+max epochs 750
+Model: "amortized_posterior"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ invertible_network (Inverti  multiple                 879160    
+ bleNetwork)                                                     
+                                                                 
+ sequence_network (SequenceN  multiple                 309334    
+ etwork)                                                         
+                                                                 
+=================================================================
+Total params: 1,188,494
+Trainable params: 1,188,318
+Non-trainable params: 176
+_________________________________________________________________
+INFO:root:Generated 1000 simulations for validation.
+2023-11-19 01:22:47.554516: I tensorflow/compiler/xla/service/service.cc:173] XLA service 0x7f47d177f300 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2023-11-19 01:22:47.554654: I tensorflow/compiler/xla/service/service.cc:181]   StreamExecutor device (0): NVIDIA A100-PCIE-40GB, Compute Capability 8.0
+2023-11-19 01:22:47.558790: I tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.cc:268] disabling MLIR crash reproducer, set env var `MLIR_CRASH_REPRODUCER_DIRECTORY` to enable.
+2023-11-19 01:22:47.665467: I tensorflow/compiler/jit/xla_compilation_cache.cc:477] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+INFO:root:Validation, Epoch: 1, Loss: 14.326
+INFO:root:Validation, Epoch: 2, Loss: 14.228
+INFO:root:Validation, Epoch: 3, Loss: 13.995
+INFO:root:Validation, Epoch: 4, Loss: 13.518
+INFO:root:Validation, Epoch: 5, Loss: 14.005
+INFO:root:Validation, Epoch: 6, Loss: 13.639
+INFO:root:Validation, Epoch: 7, Loss: 13.829
+INFO:root:Validation, Epoch: 8, Loss: 14.176
+INFO:root:Validation, Epoch: 9, Loss: 14.146
+INFO:root:Validation, Epoch: 10, Loss: 13.531
+INFO:root:Validation, Epoch: 11, Loss: 13.147
+INFO:root:Validation, Epoch: 12, Loss: 13.574
+INFO:root:Validation, Epoch: 13, Loss: 13.007
+INFO:root:Validation, Epoch: 14, Loss: 12.778
+INFO:root:Validation, Epoch: 15, Loss: 12.631
+INFO:root:Validation, Epoch: 16, Loss: 13.842
+INFO:root:Validation, Epoch: 17, Loss: 13.031
+INFO:root:Validation, Epoch: 18, Loss: 12.586
+INFO:root:Validation, Epoch: 19, Loss: 13.108
+INFO:root:Validation, Epoch: 20, Loss: 12.820
+INFO:root:Validation, Epoch: 21, Loss: 12.672
+INFO:root:Validation, Epoch: 22, Loss: 12.281
+INFO:root:Validation, Epoch: 23, Loss: 12.339
+INFO:root:Validation, Epoch: 24, Loss: 12.751
+INFO:root:Validation, Epoch: 25, Loss: 12.674
+INFO:root:Validation, Epoch: 26, Loss: 12.636
+INFO:root:Validation, Epoch: 27, Loss: 12.338
+INFO:root:Validation, Epoch: 28, Loss: 12.319
+INFO:root:Validation, Epoch: 29, Loss: 12.602
+INFO:root:Validation, Epoch: 30, Loss: 12.021
+INFO:root:Validation, Epoch: 31, Loss: 12.090
+INFO:root:Validation, Epoch: 32, Loss: 11.917
+INFO:root:Validation, Epoch: 33, Loss: 12.092
+INFO:root:Validation, Epoch: 34, Loss: 12.071
+INFO:root:Validation, Epoch: 35, Loss: 12.066
+INFO:root:Validation, Epoch: 36, Loss: 11.775
+INFO:root:Validation, Epoch: 37, Loss: 11.926
+INFO:root:Validation, Epoch: 38, Loss: 11.924
+INFO:root:Validation, Epoch: 39, Loss: 11.730
+INFO:root:Validation, Epoch: 40, Loss: 11.634
+INFO:root:Validation, Epoch: 41, Loss: 11.718
+INFO:root:Validation, Epoch: 42, Loss: 11.623
+INFO:root:Validation, Epoch: 43, Loss: 11.815
+INFO:root:Validation, Epoch: 44, Loss: 12.044
+INFO:root:Validation, Epoch: 45, Loss: 11.673
+INFO:root:Validation, Epoch: 46, Loss: 11.565
+INFO:root:Validation, Epoch: 47, Loss: 11.898
+INFO:root:Validation, Epoch: 48, Loss: 11.672
+INFO:root:Validation, Epoch: 49, Loss: 11.556
+INFO:root:Validation, Epoch: 50, Loss: 11.571
+INFO:root:Validation, Epoch: 51, Loss: 11.738
+INFO:root:Validation, Epoch: 52, Loss: 11.563
+INFO:root:Validation, Epoch: 53, Loss: 11.592
+INFO:root:Validation, Epoch: 54, Loss: 11.844
+INFO:root:Validation, Epoch: 55, Loss: 11.446
+INFO:root:Validation, Epoch: 56, Loss: 11.522
+INFO:root:Validation, Epoch: 57, Loss: 11.486
+INFO:root:Validation, Epoch: 58, Loss: 11.434
+INFO:root:Validation, Epoch: 59, Loss: 11.606
+INFO:root:Validation, Epoch: 60, Loss: 11.525
+INFO:root:Validation, Epoch: 61, Loss: 11.746
+INFO:root:Validation, Epoch: 62, Loss: 11.411
+INFO:root:Validation, Epoch: 63, Loss: 11.402
+INFO:root:Validation, Epoch: 64, Loss: 11.598
+INFO:root:Validation, Epoch: 65, Loss: 11.618
+INFO:root:Validation, Epoch: 66, Loss: 11.360
+INFO:root:Validation, Epoch: 67, Loss: 11.478
+INFO:root:Validation, Epoch: 68, Loss: 11.289
+INFO:root:Validation, Epoch: 69, Loss: 11.435
+INFO:root:Validation, Epoch: 70, Loss: 11.388
+INFO:root:Validation, Epoch: 71, Loss: 11.340
+INFO:root:Validation, Epoch: 72, Loss: 11.338
+INFO:root:Validation, Epoch: 73, Loss: 11.439
+INFO:root:Validation, Epoch: 74, Loss: 11.409
+INFO:root:Early stopping triggered.
+None
+training time: 89.68840796651784 minutes

@@ -159,19 +159,24 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 **/.DS_Store
-/networks/
 /output/
 /data/clairon/
 /data/froehlich_eGFP/
 /data/pharma/
-/plots/
+/plots/abc/
+/plots/mcmc/
+/plots/calibration/
 .idea
-/Experiments/synthetic_results_monolix/fröhlich-detailed/detailed_model_synthetic_results/
 /Experiments/sampling_results/
-/Experiments/synthetic_results_amortized/
-/Experiments/synthetic_results_monolix/
 /Experiments/empirical_bayes_results/
-/Experiments/results_nonmem/
-/Experiments/multi-experiment/
-/Experiments/real_data/
-/Experiments/sde_comparison/
+/networks/*
+!/networks/amortizer-detailed-fro-sequence-summary-Bi-LSTM-7layers-2coupling-spline-500epochs*
+!/networks/amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-500epochs*
+!/networks/amortizer-simple-fro-sequence-summary-Bi-LSTM-6layers-2coupling-spline-500epochs*
+!/networks/amortizer-pharma-split-sequence-summary-Bi-LSTM-8layers-2coupling-spline-500epochs*
+!/networks/measure_presimulation_time.py
+!/networks/log presimulation/fröhlich*
+!/networks/log training/fröhlich*
+!/networks/log presimulation/pharma/
+!/networks/log training/pharma/
+/zenodo/

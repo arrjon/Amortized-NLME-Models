@@ -1,0 +1,44 @@
+DESCRIPTION: This is a model from FroehlichReiser2018
+
+[LONGITUDINAL]
+input={
+    delta1m0,
+    delta2,
+    e0_m0,
+    k2m0scale,
+    k2,
+    k1m0,
+    r0_m0,
+    gamma,
+    tBegin,
+    offset
+}
+
+EQUATION:
+m_0 = 1
+p_0 = 0
+e_0 = exp(e0_m0)
+r_0 = exp(r0_m0)
+
+; Beginning of reaction
+if t < exp(tBegin)
+    start = 0
+else
+    start = 1
+end
+
+; ODEs
+ddt_m = start * (-exp(delta1m0) * m * e - exp(k1m0) * m * r + exp(k2) * (exp(r0_m0) - r))
+
+ddt_e = start * (-exp(delta1m0) * m * e + exp(delta2) * (exp(e0_m0) - e))
+
+ddt_r = start * (exp(k2) * (exp(r0_m0) - r) - exp(k1m0) * m * r)
+
+ddt_p = start * (exp(k2m0scale) * (exp(r0_m0) - r) - exp(gamma) * p)
+
+; Observable
+offset2 = exp(offset)
+y = log(p + offset2)
+
+OUTPUT:
+output = {y}

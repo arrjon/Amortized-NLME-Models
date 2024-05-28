@@ -105,6 +105,7 @@ def euler_maruyama(t0: float, m0: float, delta: float, gamma: float, k: float,
     x[0] = [m0, 0]
 
     # precompute random numbers for the diffusion term (Brownian motion)
+    np.random.seed(42)
     bm = np.random.normal(loc=0, scale=np.sqrt(step_size), size=(n_points - 1, 2))
 
     # simulate one step at a time (first step already done)
@@ -154,7 +155,8 @@ def batch_simulator(param_batch: np.ndarray, n_obs: int = 180, with_noise: bool 
 
 
 class FroehlichModelSDE(NlmeBaseAmortizer):
-    def __init__(self, name: str = 'SDEFroehlichModel', network_idx: int = -1, load_best: bool = False):
+    def __init__(self, name: str = 'SDEFroehlichModel', network_idx: int = -1, load_best: bool = False,
+                 prior_type: str = 'normal'):
         # define names of parameters
         param_names = ['$\delta$', '$\gamma$', '$k$', '$m_0$', 'scale', '$t_0$', 'offset', '$\sigma$']
 
@@ -162,13 +164,20 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         prior_mean = np.array([-3., -3., -1., 5., 0., 0., 0., -1.])
         prior_cov = np.diag([5., 5., 5., 5., 5., 2., 5., 2.])
 
+        if prior_type == 'normal_2':
+            prior_cov = np.diag(prior_cov.diagonal() ** 2)
+            prior_type = 'normal'
+
+        self.prior_bounds = np.stack((prior_mean - 4 * np.sqrt(np.diag(prior_cov)),
+                                      prior_mean + 4 * np.sqrt(np.diag(prior_cov)))).T
+
         super().__init__(name=name,
                          network_idx=network_idx,
                          load_best=load_best,
                          param_names=param_names,
                          prior_mean=prior_mean,
                          prior_cov=prior_cov,
-                         prior_type='normal',
+                         prior_type=prior_type,
                          max_n_obs=180)
 
         self.simulator = Simulator(batch_simulator_fun=partial(batch_simulator,
@@ -183,7 +192,7 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
         # load best
         if load_best:
             model_idx = 3
-            # amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-750epochs -> 3
+            # amortizer-sde-fro-sequence-summary-LSTM-7layers-3coupling-spline-500epochs -> 3
 
         bidirectional_LSTM = [False, True]
         n_coupling_layers = [7, 8]
@@ -245,9 +254,9 @@ class FroehlichModelSDE(NlmeBaseAmortizer):
     def plot_example(self, params: Optional[np.ndarray] = None) -> None:
         """Plots an individual trajectory of an individual in this model."""
         if params is None:
-            params = self.prior(10)['prior_draws']
+            params = self.prior(1)['prior_draws'][0]
 
-        output = batch_simulator(params[0], n_obs=180, with_noise=True)
+        output = batch_simulator(params, n_obs=180, with_noise=True)
         ax = self.prepare_plotting(output, params)
 
         plt.title(f'Cell Simulation')

@@ -197,15 +197,28 @@ class NlmeBaseAmortizer(ABC):
         Returns: prior, configured_input - prior distribution and function to configure input
 
         """
-        print('prior mean:', self.prior_mean)
-        print('prior covariance diagonal:', self.prior_cov.diagonal())
+        if self.prior_type == 'normal':
+            print('Using normal prior')
+            print('prior mean:', self.prior_mean)
+            print('prior covariance diagonal:', self.prior_cov.diagonal())
+            self.prior = Prior(batch_prior_fun=partial(batch_gaussian_prior,
+                                                       mean=self.prior_mean,
+                                                       cov=self.prior_cov),
+                               param_names=self.log_param_names)
+        elif self.prior_type == 'uniform':
+            print('Using uniform prior')
+            print(self.prior_bounds)
+            self.prior = Prior(batch_prior_fun=partial(batch_uniform_prior,
+                                                       prior_bounds=self.prior_bounds),
+                               param_names=self.log_param_names)
+            self.prior_mean = (np.diff(self.prior_bounds) / 2).flatten() + self.prior_bounds[:, 0]
+            self.prior_std = (np.diff(self.prior_bounds) / 2).flatten() ** 2 / 12  # uniform variance
+            self.prior_cov = np.diag(self.prior_std ** 2)
+        else:
+            raise ValueError('Unknown prior type')
 
-        self.prior = Prior(batch_prior_fun=partial(batch_gaussian_prior,
-                                                   mean=self.prior_mean,
-                                                   cov=self.prior_cov),
-                           param_names=self.log_param_names)
-
-        self.configured_input = partial(configure_input, prior_means=self.prior_mean,
+        self.configured_input = partial(configure_input,
+                                        prior_means=self.prior_mean,
                                         prior_stds=self.prior_std)
         return
 

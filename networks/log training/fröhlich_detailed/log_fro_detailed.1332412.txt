@@ -1,0 +1,162 @@
+2023-11-23 22:58:53.910357: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-11-23 22:58:55.479610: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer.so.7'; dlerror: libnvinfer.so.7: cannot open shared object file: No such file or directory
+2023-11-23 22:58:55.479770: W tensorflow/compiler/xla/stream_executor/platform/default/dso_loader.cc:64] Could not load dynamic library 'libnvinfer_plugin.so.7'; dlerror: libnvinfer_plugin.so.7: cannot open shared object file: No such file or directory
+2023-11-23 22:58:55.479778: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Cannot dlopen some TensorRT libraries. If you would like to use Nvidia GPU with TensorRT, please make sure the missing libraries mentioned above are installed properly.
+2023-11-23 22:59:23.821785: I tensorflow/core/platform/cpu_feature_guard.cc:193] This TensorFlow binary is optimized with oneAPI Deep Neural Network Library (oneDNN) to use the following CPU instructions in performance-critical operations:  AVX2 FMA
+To enable them in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2023-11-23 22:59:24.554155: I tensorflow/core/common_runtime/gpu/gpu_device.cc:1613] Created device /job:localhost/replica:0/task:0/device:GPU:0 with 78936 MB memory:  -> device: 0, name: NVIDIA A100 80GB PCIe, pci bus id: 0000:81:00.0, compute capability: 8.0
+INFO:root:Performing 2 pilot runs with the DetailedFroehlichModel model...
+INFO:root:Shape of parameter batch after 2 pilot simulations: (batch_size = 2, 11)
+INFO:root:Shape of simulation batch after 2 pilot simulations: (batch_size = 2, 180, 1)
+INFO:root:No optional prior non-batchable context provided.
+INFO:root:No optional prior batchable context provided.
+INFO:root:No optional simulation non-batchable context provided.
+INFO:root:No optional simulation batchable context provided.
+INFO:root:Initialized empty loss history.
+INFO:root:Initialized networks from scratch.
+INFO:root:Performing a consistency check with provided components...
+2023-11-23 22:59:39.712564: I tensorflow/compiler/xla/stream_executor/cuda/cuda_blas.cc:630] TensorFloat-32 will be used for the matrix multiplication. This will only be logged once.
+2023-11-23 22:59:39.932005: I tensorflow/compiler/xla/stream_executor/cuda/cuda_dnn.cc:428] Loaded cuDNN version 8303
+INFO:root:Done.
+[PhysicalDevice(name='/physical_device:CPU:0', device_type='CPU'), PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
+training on gpu
+using 2 layers of MultiConv1D, a  LSTM with 256 units and a dense layer with output dimension 22 as summary network
+using a 8-layer cINN as inference network with 2 layers of design affine
+prior mean: [-1. -1. -1. 12. -1.  1. -1. -6.  0.  0. -1.]
+prior covariance diagonal: [5. 5. 2. 1. 2. 2. 2. 5. 2. 5. 2.]
+Using the model DetailedFroehlichModel
+amortizer-detailed-fro-sequence-summary-LSTM-8layers-2coupling-affine-500epochs
+max epochs 500
+Model: "amortized_posterior"
+_________________________________________________________________
+ Layer (type)                Output Shape              Param #   
+=================================================================
+ invertible_network (Inverti  multiple                 668176    
+ bleNetwork)                                                     
+                                                                 
+ sequence_network (SequenceN  multiple                 309046    
+ etwork)                                                         
+                                                                 
+=================================================================
+Total params: 977,222
+Trainable params: 977,046
+Non-trainable params: 176
+_________________________________________________________________
+INFO:root:Generated 1000 simulations for validation.
+2023-11-23 23:00:09.606775: I tensorflow/compiler/xla/service/service.cc:173] XLA service 0x7f903db11100 initialized for platform CUDA (this does not guarantee that XLA will be used). Devices:
+2023-11-23 23:00:09.606814: I tensorflow/compiler/xla/service/service.cc:181]   StreamExecutor device (0): NVIDIA A100 80GB PCIe, Compute Capability 8.0
+2023-11-23 23:00:09.625297: I tensorflow/compiler/mlir/tensorflow/utils/dump_mlir_util.cc:268] disabling MLIR crash reproducer, set env var `MLIR_CRASH_REPRODUCER_DIRECTORY` to enable.
+2023-11-23 23:00:09.801205: I tensorflow/compiler/jit/xla_compilation_cache.cc:477] Compiled cluster using XLA!  This line is logged at most once for the lifetime of the process.
+INFO:root:Validation, Epoch: 1, Loss: 14.089
+INFO:root:Validation, Epoch: 2, Loss: 11.729
+INFO:root:Validation, Epoch: 3, Loss: 9.245
+INFO:root:Validation, Epoch: 4, Loss: 11.900
+INFO:root:Validation, Epoch: 5, Loss: 9.520
+INFO:root:Validation, Epoch: 6, Loss: 9.016
+INFO:root:Validation, Epoch: 7, Loss: 6.549
+INFO:root:Validation, Epoch: 8, Loss: 5.269
+INFO:root:Validation, Epoch: 9, Loss: 7.040
+INFO:root:Validation, Epoch: 10, Loss: 6.250
+INFO:root:Validation, Epoch: 11, Loss: 6.103
+INFO:root:Validation, Epoch: 12, Loss: 4.955
+INFO:root:Validation, Epoch: 13, Loss: 4.387
+INFO:root:Validation, Epoch: 14, Loss: 4.409
+INFO:root:Validation, Epoch: 15, Loss: 3.556
+INFO:root:Validation, Epoch: 16, Loss: 3.385
+INFO:root:Validation, Epoch: 17, Loss: 3.597
+INFO:root:Validation, Epoch: 18, Loss: 4.113
+INFO:root:Validation, Epoch: 19, Loss: 3.293
+INFO:root:Validation, Epoch: 20, Loss: 4.933
+INFO:root:Validation, Epoch: 21, Loss: 4.265
+INFO:root:Validation, Epoch: 22, Loss: 5.343
+INFO:root:Validation, Epoch: 23, Loss: 3.357
+INFO:root:Validation, Epoch: 24, Loss: 3.395
+INFO:root:Validation, Epoch: 25, Loss: 2.768
+INFO:root:Validation, Epoch: 26, Loss: 4.601
+INFO:root:Validation, Epoch: 27, Loss: 3.894
+INFO:root:Validation, Epoch: 28, Loss: 3.727
+INFO:root:Validation, Epoch: 29, Loss: 2.864
+INFO:root:Validation, Epoch: 30, Loss: 2.537
+INFO:root:Validation, Epoch: 31, Loss: 2.869
+INFO:root:Validation, Epoch: 32, Loss: 3.075
+INFO:root:Validation, Epoch: 33, Loss: 3.111
+INFO:root:Validation, Epoch: 34, Loss: 2.414
+INFO:root:Validation, Epoch: 35, Loss: 3.105
+INFO:root:Validation, Epoch: 36, Loss: 3.372
+INFO:root:Validation, Epoch: 37, Loss: 3.035
+INFO:root:Validation, Epoch: 38, Loss: 2.098
+INFO:root:Validation, Epoch: 39, Loss: 2.540
+INFO:root:Validation, Epoch: 40, Loss: 1.981
+INFO:root:Validation, Epoch: 41, Loss: 2.283
+INFO:root:Validation, Epoch: 42, Loss: 2.605
+INFO:root:Validation, Epoch: 43, Loss: 3.505
+INFO:root:Validation, Epoch: 44, Loss: 2.197
+INFO:root:Validation, Epoch: 45, Loss: 1.972
+INFO:root:Validation, Epoch: 46, Loss: 2.287
+INFO:root:Validation, Epoch: 47, Loss: 2.512
+INFO:root:Validation, Epoch: 48, Loss: 2.064
+INFO:root:Validation, Epoch: 49, Loss: 2.081
+INFO:root:Validation, Epoch: 50, Loss: 1.984
+INFO:root:Validation, Epoch: 51, Loss: 2.100
+INFO:root:Validation, Epoch: 52, Loss: 1.818
+INFO:root:Validation, Epoch: 53, Loss: 1.719
+INFO:root:Validation, Epoch: 54, Loss: 2.771
+INFO:root:Validation, Epoch: 55, Loss: 2.191
+INFO:root:Validation, Epoch: 56, Loss: 1.707
+INFO:root:Validation, Epoch: 57, Loss: 2.356
+INFO:root:Validation, Epoch: 58, Loss: 1.896
+INFO:root:Validation, Epoch: 59, Loss: 1.928
+INFO:root:Validation, Epoch: 60, Loss: 1.656
+INFO:root:Validation, Epoch: 61, Loss: 2.199
+INFO:root:Validation, Epoch: 62, Loss: 1.390
+INFO:root:Validation, Epoch: 63, Loss: 2.693
+INFO:root:Validation, Epoch: 64, Loss: 2.139
+INFO:root:Validation, Epoch: 65, Loss: 1.676
+INFO:root:Validation, Epoch: 66, Loss: 1.843
+INFO:root:Validation, Epoch: 67, Loss: 1.770
+INFO:root:Validation, Epoch: 68, Loss: 1.653
+INFO:root:Validation, Epoch: 69, Loss: 1.892
+INFO:root:Validation, Epoch: 70, Loss: 2.326
+INFO:root:Validation, Epoch: 71, Loss: 1.582
+INFO:root:Validation, Epoch: 72, Loss: 2.245
+INFO:root:Validation, Epoch: 73, Loss: 1.756
+INFO:root:Validation, Epoch: 74, Loss: 1.985
+INFO:root:Validation, Epoch: 75, Loss: 1.760
+INFO:root:Validation, Epoch: 76, Loss: 1.612
+INFO:root:Validation, Epoch: 77, Loss: 1.821
+INFO:root:Validation, Epoch: 78, Loss: 1.532
+INFO:root:Validation, Epoch: 79, Loss: 1.547
+INFO:root:Validation, Epoch: 80, Loss: 1.741
+INFO:root:Validation, Epoch: 81, Loss: 1.493
+INFO:root:Validation, Epoch: 82, Loss: 1.461
+INFO:root:Validation, Epoch: 83, Loss: 1.757
+INFO:root:Validation, Epoch: 84, Loss: 1.344
+INFO:root:Validation, Epoch: 85, Loss: 1.223
+INFO:root:Validation, Epoch: 86, Loss: 1.336
+INFO:root:Validation, Epoch: 87, Loss: 1.374
+INFO:root:Validation, Epoch: 88, Loss: 1.484
+INFO:root:Validation, Epoch: 89, Loss: 1.955
+INFO:root:Validation, Epoch: 90, Loss: 2.525
+INFO:root:Validation, Epoch: 91, Loss: 3.026
+INFO:root:Early stopping triggered.
+None
+training time: 39.62752518566946 minutes
+Traceback (most recent call last):
+  File "/home/jonas/Amortized_NLME/training.py", line 212, in <module>
+    test_data = model.load_data(n_data=25)
+  File "/home/jonas/Amortized_NLME/models/froehlich_model_detailed.py", line 157, in load_data
+    obs_data = load_multi_experiment_data(load_egfp=load_egfp, load_d2egfp=load_d2egfp)
+  File "/home/jonas/Amortized_NLME/models/froehlich_model_simple.py", line 302, in load_multi_experiment_data
+    data_list_egfp.append(load_single_cell_data(file_name=name,
+  File "/home/jonas/Amortized_NLME/models/froehlich_model_simple.py", line 273, in load_single_cell_data
+    data = pd.read_excel(f'../data/froehlich_eGFP/{file_name}.xlsx', index_col=0, header=None)
+  File "/home/jonas/Amortized_NLME/amortizedNLME/lib/python3.10/site-packages/pandas/io/excel/_base.py", line 504, in read_excel
+    io = ExcelFile(
+  File "/home/jonas/Amortized_NLME/amortizedNLME/lib/python3.10/site-packages/pandas/io/excel/_base.py", line 1563, in __init__
+    ext = inspect_excel_format(
+  File "/home/jonas/Amortized_NLME/amortizedNLME/lib/python3.10/site-packages/pandas/io/excel/_base.py", line 1419, in inspect_excel_format
+    with get_handle(
+  File "/home/jonas/Amortized_NLME/amortizedNLME/lib/python3.10/site-packages/pandas/io/common.py", line 872, in get_handle
+    handle = open(handle, ioargs.mode)
+FileNotFoundError: [Errno 2] No such file or directory: '../data/froehlich_eGFP/20160427_mean_eGFP.xlsx'

@@ -1,0 +1,34 @@
+model froehlich_simple
+
+compartment comp1
+
+# Define species
+species m
+species p
+
+# Species init
+m = 1
+p = 0
+
+# Parameter to estimate
+gamma = 0
+delta = -1
+km0scale = 12
+tBegin = 0
+offset = 0
+
+# Start parameter
+start = 0
+
+# Reactions
+mrna_degradation: m -> ; start*(exp(delta) * m)
+protein_translation: m -> m + p ; start*(exp(km0scale) * m)
+protein_degradation: p -> ; start*(exp(gamma) * p)
+
+# Events
+reaction_start: at (time >= exp(tBegin)): start = 1
+
+# Observables
+y := log(p + exp(offset))
+
+end

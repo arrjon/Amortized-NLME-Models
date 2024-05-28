@@ -86,7 +86,6 @@ def create_param_names_opt(dim: int,
 
 def create_mixed_effect_model_param_names(param_names: list,
                                           cov_type: str,
-                                          covariates_names: Optional[list] = None
                                           ) -> list:
     """create parameter names for mixed effect model (mean, variance, correlation)"""
     pop_param_names = ['pop-' + name for name in param_names]
@@ -96,8 +95,6 @@ def create_mixed_effect_model_param_names(param_names: list,
     if cov_type == 'cholesky' and len(mixed_effect_params_names) == len(param_names) * 2:
         # add parameter names in exact the same order as in the covariance matrix
         mixed_effect_params_names += create_correlation_names(param_names)
-    if covariates_names is not None:
-        mixed_effect_params_names += covariates_names
     return mixed_effect_params_names
 
 
@@ -190,7 +187,7 @@ def create_fixed_params(fix_names: list, fixed_values: list,
 def compute_error_estimate(results: np.ndarray,
                            true_parameters: np.ndarray,
                            relative_error: bool = False,
-                           bi_modal: bool = False) -> np.ndarray:
+                           bi_modal: Optional[np.ndarray] = None) -> np.ndarray:
     if results.ndim == 1:
         results = results[np.newaxis, :]
 
@@ -198,14 +195,14 @@ def compute_error_estimate(results: np.ndarray,
     temp_results = results.copy()
     assert true_parameters.size == results.shape[1], 'true_parameters and results must have the same size'
 
-    if bi_modal:
+    if bi_modal is not None:
         # handle the bimodal distributions, both modes are equally acceptable
         # check which mode is in the reference
         first_param_larger = reference[0] > reference[1]
         for r_i, res in enumerate(temp_results):
             if (res[0] > res[1]) != first_param_larger:
                 # switch modes
-                temp_results[r_i, [0, 1, 6, 7]] = temp_results[r_i, [1, 0, 7, 6]]
+                temp_results[r_i, bi_modal[0]] = temp_results[r_i, bi_modal[1]]
 
     if relative_error:  # error per run
         error = np.mean((temp_results - reference) ** 2 / (reference ** 2), axis=1)
@@ -213,22 +210,3 @@ def compute_error_estimate(results: np.ndarray,
         error = np.mean((temp_results - reference) ** 2, axis=1)
     return error
 
-
-def compute_variance_estimate(results: np.ndarray,
-                              bi_modal: bool = False) -> np.ndarray:
-    assert results.ndim == 2, 'results must be 2D array'
-
-    reference = results.mean(axis=0)
-    temp_results = results.copy()
-
-    if bi_modal:
-        # handle the bimodal distributions, both modes are equally acceptable
-        # check which mode is in the reference
-        first_param_larger = reference[0] > reference[1]
-        for r_i, res in enumerate(temp_results):
-            if (res[0] > res[1]) != first_param_larger:
-                # switch modes
-                temp_results[r_i, [0, 1, 6, 7]] = temp_results[r_i, [1, 0, 7, 6]]
-
-    var = np.mean((results - reference) ** 2)
-    return var

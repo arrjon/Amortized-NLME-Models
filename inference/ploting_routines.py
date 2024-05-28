@@ -382,8 +382,6 @@ def plot_histograms(param_samples: np.ndarray,
 
     for _ax in axis[n_params:]:
         _ax.remove()
-    if fig_name is not None:
-        plt.savefig(fig_name)
     plt.show()
     return
 
@@ -419,12 +417,12 @@ def plot_distribution(result_list: list,
     return
 
 
-def corrplot(corr_df: pd.DataFrame, ax: Optional[plt.Axes] = None) -> plt.Axes:
+def corrplot(corr_df: pd.DataFrame, ax: Optional[plt.Axes] = None, square: bool = True) -> plt.Axes:
     if ax is None:
         f, ax = plt.subplots(figsize=(8, 6))
     sns.heatmap(corr_df,
-                cmap=sns.diverging_palette(10, 220, as_cmap=True),
+                cmap=sns.diverging_palette(220, 20, as_cmap=True),
                 vmin=-1.0, vmax=1.0,
-                square=True, ax=ax)
+                square=square, ax=ax)
     ax.set_title('Correlation Matrix', fontsize=16)
     return ax
