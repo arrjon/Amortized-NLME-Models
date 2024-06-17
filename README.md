@@ -1,11 +1,13 @@
-# Amortized-NLME-Models
+
+# Amortized-NLME-Models <img src=plots/AmortizedNLME.png align="right" width=20% height=20% />
 
 Non-linear mixed-effects models are a powerful tool for studying heterogeneous populations in biology, medicine, economics, engineering, and related fields.
 However, fitting these models is computationally challenging when the description of individuals is complex and the population is large.
 To address this issue, we propose the use of neural density estimation to approximate individual-specific posterior distributions in an amortized fashion. 
 This approximation is then used to efficiently infer population-level parameters.
 
-More details on the method can be found in the preprint [Arruda et al. (2023)](https://doi.org/10.1101/2023.08.22.554273).
+More details on the method can be found in the paper
+- Arruda et al. [An amortized approach to non-linear mixed-effects modeling based on neural posterior estimation](https://doi.org/10.1101/2023.08.22.554273). _Proceedings of the 41st International Conference on Machine Learning_, 2024.
 
 In the folder `Examples` you can find a notebook `Amortized NLME Simulation & Training` which shows how to train the 
 neural posterior estimator. 
@@ -24,7 +26,7 @@ You can install the two main dependencies using the package manager [pip](https:
 - [BayesFlow](https://bayesflow.org): `pip install bayesflow` 
 - [pyPesto](https://pypesto.readthedocs.io): `pip install pypesto`
 
-Then you can clone the AmortizedNLME package using the `git clone`.
+Then you can clone the AmortizedNLME package using `git clone`.
 
 ## Simulation and Training Phase using BayesFlow
 
