@@ -1,6 +1,12 @@
 
 # Amortized-NLME-Models <img src=plots/AmortizedNLME.png align="right" width=20% height=20% />
 
+> [!WARNING]
+> This repository is outdated and depends on older library versions.
+> We recommend using the current **BayesFlow** version instead: https://bayesflow.org.
+> For recent examples, including workflows relevant to hierarchical models, see the BayesFlow documentation.
+
+
 Non-linear mixed-effects models are a powerful tool for studying heterogeneous populations in biology, medicine, economics, engineering, and related fields.
 However, fitting these models is computationally challenging when the description of individuals is complex and the population is large.
 To address this issue, we propose the use of neural density estimation to approximate individual-specific posterior distributions in an amortized fashion. 
